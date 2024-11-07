@@ -19,7 +19,7 @@ jobs:
         name: IntelOrca.Biohazard.BioRand.Common
         path: out/**/*
     - name: Create release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/v')
       with:
         fail_on_unmatched_files: true
