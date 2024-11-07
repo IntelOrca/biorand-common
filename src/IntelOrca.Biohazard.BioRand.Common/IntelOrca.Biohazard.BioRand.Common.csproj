@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <LangVersion>12.0</LangVersion>
+        <Version>1.0.0</Version>
+        <Title>BioRand Common Library</Title>
+        <Authors>Ted John</Authors>
+        <Product>$(AssemblyName)</Product>
+        <Description>Common library for BioRand related projects.</Description>
+        <Copyright>Copyright (C) Ted John 2024</Copyright>
+        <PackageProjectUrl>https://github.com/IntelOrca/biorand-common</PackageProjectUrl>
+        <PackageIcon>icon.png</PackageIcon>
+        <RepositoryUrl>https://github.com/IntelOrca/biorand-common</RepositoryUrl>
+        <PackageTags>resident evil,biohazard,biorand,randomizer</PackageTags>
+    </PropertyGroup>
+    <ItemGroup>
+      <None Include="..\..\icon.png">
+        <Pack>True</Pack>
+        <PackagePath>\</PackagePath>
+      </None>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    </ItemGroup>
+</Project>
