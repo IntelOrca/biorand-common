@@ -1,10 +1,3 @@
-using System;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace IntelOrca.Biohazard.BioRand
 {
     public class RandomizerAgent
@@ -18,10 +11,10 @@ namespace IntelOrca.Biohazard.BioRand
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
-        private bool _generating;
-        private TimeSpan _pollTime = TimeSpan.FromSeconds(5);
-        private TimeSpan _restartTime = TimeSpan.FromSeconds(5);
         private readonly IRandomizerAgentHandler _handler;
+        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1);
+        private DateTime _lastHeartbeatTime;
+        private bool _shownWaitingMessage;
 
         public IRandomizer Randomizer => _handler.Randomizer;
         public string BaseUri { get; }
@@ -29,6 +22,10 @@ namespace IntelOrca.Biohazard.BioRand
         public int GameId { get; }
         public Guid Id { get; private set; }
         public string Status { get; private set; } = StatusIdle;
+
+        public TimeSpan HeartbeatTime { get; set; } = TimeSpan.FromSeconds(5);
+        public TimeSpan PollTime { get; set; } = TimeSpan.FromSeconds(5);
+        public TimeSpan RestartTime { get; set; } = TimeSpan.FromSeconds(5);
 
         public RandomizerAgent(string baseUri, string apiKey, int gameId, IRandomizerAgentHandler handler)
         {
@@ -44,21 +41,18 @@ namespace IntelOrca.Biohazard.BioRand
         {
             while (!ct.IsCancellationRequested)
             {
-                await RegisterAsync();
-                while (!ct.IsCancellationRequested)
+                if (await RegisterAsync())
                 {
-                    await SendStatusAsync();
-                    if (!_generating)
-                    {
-                        await ProcessNextRandomizer();
-                    }
-                    await Task.Delay(_pollTime);
+                    await Task.WhenAny(
+                        RunStatusLoopAsync(ct),
+                        RunProcessLoopAsync(ct));
+                    await UnregisterAsync();
                 }
-                await Task.Delay(_restartTime);
+                await Task.Delay(RestartTime, ct);
             }
         }
 
-        private async Task RegisterAsync()
+        private async Task<bool> RegisterAsync()
         {
             _handler.LogInfo($"Registering agent at {BaseUri}...");
             try
@@ -71,10 +65,59 @@ namespace IntelOrca.Biohazard.BioRand
                 });
                 Id = response.Id;
                 _handler.LogInfo($"Registered as agent {Id}");
+                return true;
             }
             catch (Exception ex)
             {
                 _handler.LogError(ex, "Failed to register agent");
+                return false;
+            }
+        }
+
+        private async Task UnregisterAsync()
+        {
+            _handler.LogInfo($"Unregistering agent...");
+            try
+            {
+                await PostAsync<object>("generator/unregister", new { Id });
+                _handler.LogInfo($"Unregistered agent {Id}");
+            }
+            catch (Exception ex)
+            {
+                _handler.LogError(ex, "Failed to unregister agent");
+            }
+        }
+
+        private async Task RunStatusLoopAsync(CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                await _semaphore.WaitAsync();
+                try
+                {
+                    var timeSinceLastHeartbeat = DateTime.UtcNow - _lastHeartbeatTime;
+                    if (timeSinceLastHeartbeat >= HeartbeatTime)
+                    {
+                        await SendStatusAsync();
+                    }
+                }
+                finally
+                {
+                    _semaphore.Release();
+                }
+                await Task.Delay(HeartbeatTime, ct);
+            }
+        }
+
+        private async Task RunProcessLoopAsync(CancellationToken ct)
+        {
+            _shownWaitingMessage = false;
+            while (!ct.IsCancellationRequested)
+            {
+                if (!await ProcessNextRandomizer(ct))
+                {
+                    await Task.Delay(PollTime, ct);
+                }
             }
         }
 
@@ -87,6 +130,7 @@ namespace IntelOrca.Biohazard.BioRand
                     Id,
                     Status
                 });
+                _lastHeartbeatTime = DateTime.UtcNow;
             }
             catch (Exception ex)
             {
@@ -94,34 +138,62 @@ namespace IntelOrca.Biohazard.BioRand
             }
         }
 
-        private async Task ProcessNextRandomizer()
+        private async Task SetStatusAsync(string status)
+        {
+            await _semaphore.WaitAsync();
+            try
+            {
+                Status = status;
+                await SendStatusAsync();
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
+        }
+
+        private async Task<bool> ProcessNextRandomizer(CancellationToken ct)
         {
             try
             {
+                if (ct.IsCancellationRequested)
+                    return false;
+
+                if (!_shownWaitingMessage)
+                {
+                    _shownWaitingMessage = true;
+                    _handler.LogInfo($"Waiting for next rando to generate...");
+                }
                 var queue = await GetAsync<QueueResponseItem[]>("generator/queue");
                 foreach (var q in queue)
                 {
+                    if (ct.IsCancellationRequested)
+                        return false;
                     if (q.GameId != GameId)
                         continue;
 
                     if (await _handler.CanGenerateAsync(q))
                     {
+                        if (ct.IsCancellationRequested)
+                            return false;
+
                         try
                         {
                             _handler.LogInfo($"Generating rando {q.Id}...");
+                            _shownWaitingMessage = false;
                             await PostAsync<object>("generator/begin", new
                             {
                                 Id,
                                 RandoId = q.Id,
                                 Version = Randomizer.BuildVersion
                             });
-                            await BeginGeneration(q);
+                            await GenerateRandomizer(q);
+                            return true;
                         }
                         catch (Exception ex)
                         {
                             _handler.LogError(ex, "Failed to begin generating randomizer");
                         }
-                        break;
                     }
                 }
             }
@@ -129,9 +201,10 @@ namespace IntelOrca.Biohazard.BioRand
             {
                 _handler.LogError(ex, "Failed to get randomizer queue");
             }
+            return false;
         }
 
-        private async Task BeginGeneration(QueueResponseItem q)
+        private async Task GenerateRandomizer(QueueResponseItem q)
         {
             var randomizerInput = new RandomizerInput()
             {
@@ -142,37 +215,39 @@ namespace IntelOrca.Biohazard.BioRand
                 Seed = q.Seed
             };
 
-            _generating = true;
             try
             {
-                await Task.Run(async () =>
+                await SetStatusAsync(StatusGenerating);
+                RandomizerOutput output;
+                try
                 {
-                    try
+                    output = await _handler.GenerateAsync(q, randomizerInput);
+                }
+                catch (Exception ex)
+                {
+                    await PostAsync<object>("generator/fail", new
                     {
-                        Status = StatusGenerating;
-                        var output = await _handler.GenerateAsync(q, randomizerInput);
+                        Id,
+                        RandoId = q.Id
+                    });
+                    _handler.LogError(ex, "Failed to generate randomizer");
+                    return;
+                }
 
-                        Status = StatusUploading;
-                        _handler.LogInfo($"Uploading rando {q.Id}...");
-                        await PostAsync<object>("generator/end", new
-                        {
-                            Id,
-                            RandoId = q.Id,
-                            output.PakOutput,
-                            output.FluffyOutput
-                        });
-                        _handler.LogInfo($"Uploaded rando {q.Id}");
-                    }
-                    finally
-                    {
-                        Status = StatusIdle;
-                        _generating = false;
-                    }
+                await SetStatusAsync(StatusUploading);
+                _handler.LogInfo($"Uploading rando {q.Id}...");
+                await PostAsync<object>("generator/end", new
+                {
+                    Id,
+                    RandoId = q.Id,
+                    output.PakOutput,
+                    output.FluffyOutput
                 });
+                _handler.LogInfo($"Uploaded rando {q.Id}");
             }
-            catch
+            finally
             {
-                _generating = false;
+                await SetStatusAsync(StatusIdle);
             }
         }
 
