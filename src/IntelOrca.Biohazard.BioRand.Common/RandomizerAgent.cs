@@ -1,3 +1,10 @@
+using System;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace IntelOrca.Biohazard.BioRand
 {
     public class RandomizerAgent
@@ -43,10 +50,16 @@ namespace IntelOrca.Biohazard.BioRand
             {
                 if (await RegisterAsync())
                 {
-                    await Task.WhenAny(
-                        RunStatusLoopAsync(ct),
-                        RunProcessLoopAsync(ct));
-                    await UnregisterAsync();
+                    try
+                    {
+                        await Task.WhenAny(
+                            RunStatusLoopAsync(ct),
+                            RunProcessLoopAsync(ct));
+                    }
+                    finally
+                    {
+                        await UnregisterAsync();
+                    }
                 }
                 await Task.Delay(RestartTime, ct);
             }
@@ -225,10 +238,12 @@ namespace IntelOrca.Biohazard.BioRand
                 }
                 catch (Exception ex)
                 {
+                    var reason = ex is RandomizerUserException ue ? ue.Message : "An internal error occured generating the randomizer.";
                     await PostAsync<object>("generator/fail", new
                     {
                         Id,
-                        RandoId = q.Id
+                        RandoId = q.Id,
+                        Reason = reason
                     });
                     _handler.LogError(ex, "Failed to generate randomizer");
                     return;
