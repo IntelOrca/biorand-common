@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace IntelOrca.Biohazard.BioRand
 {
-    public class RandomizerAgent
+    public class RandomizerAgent : IDisposable, IAsyncDisposable
     {
         private const string StatusIdle = "Idle";
         private const string StatusGenerating = "Generating";
@@ -22,6 +23,8 @@ namespace IntelOrca.Biohazard.BioRand
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1);
         private DateTime _lastHeartbeatTime;
         private bool _shownWaitingMessage;
+        private CancellationTokenSource _runCts = new();
+        private Task _runTask = Task.CompletedTask;
 
         public IRandomizer Randomizer => _handler.Randomizer;
         public string BaseUri { get; }
@@ -34,6 +37,8 @@ namespace IntelOrca.Biohazard.BioRand
         public TimeSpan PollTime { get; set; } = TimeSpan.FromSeconds(5);
         public TimeSpan RestartTime { get; set; } = TimeSpan.FromSeconds(5);
 
+        public bool UseMultiPartFormUpload { get; } = true;
+
         public RandomizerAgent(string baseUri, string apiKey, int gameId, IRandomizerAgentHandler handler)
         {
             BaseUri = baseUri;
@@ -44,7 +49,36 @@ namespace IntelOrca.Biohazard.BioRand
             _httpClient.DefaultRequestHeaders.Add("X-API-KEY", ApiKey);
         }
 
+        public void Dispose() => DisposeAsync().AsTask().Wait();
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_runTask != null && !_runTask.IsCompleted)
+            {
+                _runCts.Cancel();
+                try
+                {
+                    await _runTask;
+                }
+                catch
+                {
+                }
+            }
+        }
+
         public async Task RunAsync(CancellationToken ct = default)
+        {
+            if (_runTask != null && !_runTask.IsCompleted)
+            {
+                throw new Exception("Already running");
+            }
+
+            _runCts = new CancellationTokenSource();
+            _runTask = RunInternalAsync(CancellationTokenSource.CreateLinkedTokenSource(ct, _runCts.Token).Token);
+            await _runTask;
+        }
+
+        private async Task RunInternalAsync(CancellationToken ct = default)
         {
             while (!ct.IsCancellationRequested)
             {
@@ -200,13 +234,14 @@ namespace IntelOrca.Biohazard.BioRand
                                 RandoId = q.Id,
                                 Version = Randomizer.BuildVersion
                             });
-                            await GenerateRandomizer(q);
-                            return true;
                         }
                         catch (Exception ex)
                         {
                             _handler.LogError(ex, "Failed to begin generating randomizer");
+                            continue;
                         }
+                        await GenerateRandomizer(q);
+                        return true;
                     }
                 }
             }
@@ -251,14 +286,34 @@ namespace IntelOrca.Biohazard.BioRand
 
                 await SetStatusAsync(StatusUploading);
                 _handler.LogInfo($"Uploading rando {q.Id}...");
-                await PostAsync<object>("generator/end", new
+                try
                 {
-                    Id,
-                    RandoId = q.Id,
-                    output.PakOutput,
-                    output.FluffyOutput
-                });
-                _handler.LogInfo($"Uploaded rando {q.Id}");
+                    if (UseMultiPartFormUpload)
+                    {
+                        await PostFormAsync<object>("generator/end-form", new Dictionary<string, object>
+                        {
+                            ["id"] = Id,
+                            ["randoId"] = q.Id,
+                            ["pakOutput"] = output.PakOutput,
+                            ["fluffyOutput"] = output.FluffyOutput
+                        });
+                    }
+                    else
+                    {
+                        await PostAsync<object>("generator/end", new
+                        {
+                            Id,
+                            RandoId = q.Id,
+                            output.PakOutput,
+                            output.FluffyOutput
+                        });
+                    }
+                    _handler.LogInfo($"Uploaded rando {q.Id}");
+                }
+                catch (Exception ex)
+                {
+                    _handler.LogError(ex, "Failed to upload rando");
+                }
             }
             finally
             {
@@ -280,6 +335,33 @@ namespace IntelOrca.Biohazard.BioRand
                 request.Content = new StringContent(json, Encoding.UTF8, "application/json");
             }
             var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+                throw new Exception($"{response.StatusCode} returned");
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            if (responseContent.Length == 0)
+                return null!;
+
+            return JsonSerializer.Deserialize<T>(responseContent, _options)!;
+        }
+
+        private async Task<T> PostFormAsync<T>(string path, Dictionary<string, object> formData) where T : class
+        {
+            var url = GetUri(path);
+            using var form = new MultipartFormDataContent();
+            foreach (var kvp in formData)
+            {
+                if (kvp.Value is byte[] b)
+                {
+                    form.Add(new ByteArrayContent(b), kvp.Key, kvp.Key);
+                }
+                else
+                {
+                    form.Add(new StringContent(kvp.Value.ToString()), kvp.Key);
+                }
+            }
+
+            var response = await _httpClient.PostAsync(url, form);
             if (!response.IsSuccessStatusCode)
                 throw new Exception($"{response.StatusCode} returned");
 
