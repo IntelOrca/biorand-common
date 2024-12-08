@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace IntelOrca.Biohazard.BioRand
 {
-    public class RandomizerAgent : IDisposable, IAsyncDisposable
+    public class RandomizerAgent : IDisposable
     {
         private const string StatusIdle = "Idle";
         private const string StatusGenerating = "Generating";
