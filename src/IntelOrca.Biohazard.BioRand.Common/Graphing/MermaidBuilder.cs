@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Text;
 
-namespace IntelOrca.Biohazard.BioRand.Routing
+namespace IntelOrca.Biohazard.BioRand.Graphing
 {
-    internal class MermaidBuilder
+    public class MermaidBuilder
     {
         private readonly StringBuilder _sb = new StringBuilder();
         private int _indent;

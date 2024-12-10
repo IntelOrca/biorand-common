@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using IntelOrca.Biohazard.BioRand.Graphing;
 
 namespace IntelOrca.Biohazard.BioRand.Routing
 {
@@ -100,7 +101,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                         }
                     }
                 }
-                return (nodes.ToArray(), end.Where(x => !visited.Contains(x)).ToArray());
+                return ([.. nodes], end.Where(x => !visited.Contains(x)).ToArray());
             }
         }
 

@@ -8,7 +8,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         [Fact]
         public void Example_RE2()
         {
-            var builder = new NewGraphBuilder();
+            var builder = new GraphBuilder();
             var keyBlueKeycard = builder.Key("Blue Keycard");
             var keyUnicorn = builder.Key("Unicorn Medal");
             var keySpade = builder.Key("Spade Key");

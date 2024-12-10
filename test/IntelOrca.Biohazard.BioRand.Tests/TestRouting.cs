@@ -23,7 +23,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         [Fact]
         public void AltWaysInSameRoom()
         {
-            var builder = new GraphBuilder();
+            var builder = new DependencyGraphBuilder();
             var room0 = builder.AndGate("ROOM 0");
             var room1 = builder.AndGate("ROOM 1", room0);
             var room2 = builder.AndGate("ROOM 2", room0);
@@ -40,7 +40,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ReusuableKey(1, "KEY 0");
                 var key1 = builder.ReusuableKey(1, "KEY 1");
@@ -66,7 +66,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ReusuableKey(1, "KEY 0");
                 var key1 = builder.ReusuableKey(1, "KEY 1");
@@ -93,7 +93,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ReusuableKey(1, "KEY 0");
                 var key1 = builder.ReusuableKey(1, "KEY 1");
@@ -119,7 +119,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ReusuableKey(1, "KEY 0");
                 var key1 = builder.ReusuableKey(1, "KEY 1");
@@ -170,7 +170,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ReusuableKey(1, "KEY 0");
                 var room0 = builder.AndGate("ROOM 0");
@@ -197,7 +197,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ReusuableKey(1, "KEY 0");
                 var room0 = builder.AndGate("ROOM 0");
@@ -222,7 +222,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ReusuableKey(1, "KEY 0");
                 var key1 = builder.ReusuableKey(1, "KEY 1");
@@ -253,7 +253,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ReusuableKey(1, "KEY 0");
                 var key1 = builder.ReusuableKey(2, "KEY 1");
@@ -280,7 +280,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         [Fact]
         public void SingleUseKey_DoorAfterDoor()
         {
-            var builder = new GraphBuilder();
+            var builder = new DependencyGraphBuilder();
 
             var key0 = builder.ConsumableKey(1, "KEY 0");
             var room0 = builder.AndGate("ROOM 0");
@@ -299,7 +299,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         [Fact]
         public void SingleUseKey_TwoDoors()
         {
-            var builder = new GraphBuilder();
+            var builder = new DependencyGraphBuilder();
 
             var key0 = builder.ConsumableKey(1, "KEY 0");
             var room0 = builder.AndGate("ROOM 0");
@@ -320,7 +320,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ConsumableKey(1, "KEY 0");
                 var room0 = builder.AndGate("ROOM 0");
@@ -344,7 +344,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ConsumableKey(1, "KEY 0");
                 var key1 = builder.ReusuableKey(1, "KEY 1");
@@ -370,7 +370,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ConsumableKey(1, "KEY 0");
                 var key1 = builder.ReusuableKey(1, "KEY 1");
@@ -393,7 +393,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         [Fact]
         public void SingleUseKey_TwoOneWayDoors()
         {
-            var builder = new GraphBuilder();
+            var builder = new DependencyGraphBuilder();
 
             var key0 = builder.ConsumableKey(1, "KEY 0");
             var room0 = builder.AndGate("ROOM 0");
@@ -412,7 +412,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         [Fact]
         public void SingleUseKey_TwoKeyDoor()
         {
-            var builder = new GraphBuilder();
+            var builder = new DependencyGraphBuilder();
 
             var key0 = builder.ConsumableKey(1, "KEY 0");
             var key1 = builder.ReusuableKey(2, "KEY 1");
@@ -435,7 +435,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.ConsumableKey(1, "KEY 0");
                 var key1 = builder.ReusuableKey(1, "KEY 1");
@@ -459,7 +459,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         [Fact]
         public void Key2xRequired()
         {
-            var builder = new GraphBuilder();
+            var builder = new DependencyGraphBuilder();
 
             var key0 = builder.ReusuableKey(1, "KEY 0");
             var room0 = builder.AndGate("ROOM 0");
@@ -477,7 +477,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         [Fact]
         public void TwoRoutes()
         {
-            var builder = new GraphBuilder();
+            var builder = new DependencyGraphBuilder();
 
             var keyTop = builder.ReusuableKey(1, "KEY TOP");
             var keyBottom = builder.ReusuableKey(1, "KEY BOTTOM");
@@ -510,7 +510,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.RemovableKey(1, "KEY 0");
                 var key1 = builder.ReusuableKey(1, "KEY 1");
@@ -536,7 +536,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.RemovableKey(1, "KEY 0");
 
@@ -561,7 +561,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new GraphBuilder();
+                var builder = new DependencyGraphBuilder();
 
                 var key0 = builder.RemovableKey(1, "KEY 0");
                 var key1 = builder.ReusuableKey(1, "KEY 0");

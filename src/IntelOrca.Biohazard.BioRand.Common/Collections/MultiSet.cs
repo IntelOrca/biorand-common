@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 
-namespace IntelOrca.Biohazard.BioRand.Routing
+namespace IntelOrca.Biohazard.BioRand.Collections
 {
     internal class MultiSet<T> : ICollection<T>, IEnumerable<T>
     {

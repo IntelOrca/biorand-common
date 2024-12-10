@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using IntelOrca.Biohazard.BioRand.Collections;
 
 namespace IntelOrca.Biohazard.BioRand.Routing
 {
