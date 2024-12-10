@@ -228,23 +228,33 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return (state, result.ToArray());
         }
 
+        /// <summary>
+        /// Key the minimum number of occurances this given removal key requires
+        /// to access the target node.
+        /// </summary>
+        /// <param name="state"></param>
+        /// <param name="key"></param>
+        /// <param name="edge"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
         private static int GetRemovableKeyCount(State state, Key key, Edge edge)
         {
-            throw new NotImplementedException();
-            // var count = 0;
-            // Recurse(edge);
-            // return count;
-            // 
-            // void Recurse(Edge e)
-            // {
-            //     foreach (var r in e.Requires)
-            //     {
-            //         if (r.Equals(key))
-            //             count++;
-            //         else if (r is Node n)
-            //             Recurse(state.Input.GetEdges(n));
-            //     }
-            // }
+            var selfCount = 0;
+            foreach (var r in edge.Requires)
+            {
+                if (r.Equals(key))
+                {
+                    selfCount++;
+                }
+            }
+            var edges = state.Input.GetEdgesTo(edge.Source);
+            int? minCount = null;
+            foreach (var e in edges)
+            {
+                var c = GetRemovableKeyCount(state, key, e);
+                minCount = minCount is int mc ? Math.Min(mc, c) : c;
+            }
+            return selfCount + (minCount ?? 0);
         }
 
 #if false

@@ -11,6 +11,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         public ImmutableArray<Edge> Edges { get; }
 
         public ImmutableDictionary<Node, ImmutableArray<Edge>> EdgeMap { get; }
+        public ImmutableDictionary<Node, ImmutableArray<Edge>> InverseEdgeMap { get; }
         public ImmutableArray<Node> Start { get; }
         public ImmutableArray<ImmutableArray<Node>> Subgraphs { get; }
 
@@ -25,6 +26,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             EdgeMap = edges
                 .GroupBy(x => x.Source)
                 .ToImmutableDictionary(x => x.Key, x => x.ToImmutableArray());
+            InverseEdgeMap = edges
+                .GroupBy(x => x.Destination)
+                .ToImmutableDictionary(x => x.Key, x => x.ToImmutableArray());
 
             var targets = Edges.Select(x => x.Destination).ToImmutableHashSet();
             Start = nodes.Where(x => !targets.Contains(x)).ToImmutableArray();
@@ -34,7 +38,12 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         public ImmutableArray<Edge> GetEdges(Node node)
         {
-            return EdgeMap.TryGetValue(node, out var edges) ? edges : ([]);
+            return EdgeMap.TryGetValue(node, out var edges) ? edges : [];
+        }
+
+        public ImmutableArray<Edge> GetEdgesTo(Node node)
+        {
+            return InverseEdgeMap.TryGetValue(node, out var edges) ? edges : [];
         }
 
         private string[] GetKeys(Edge e)
