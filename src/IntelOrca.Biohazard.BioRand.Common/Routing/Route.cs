@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
+using IntelOrca.Biohazard.BioRand.Collections;
 
 namespace IntelOrca.Biohazard.BioRand.Routing
 {
@@ -7,13 +7,13 @@ namespace IntelOrca.Biohazard.BioRand.Routing
     {
         public Graph Graph { get; }
         public bool AllNodesVisited { get; }
-        public ImmutableOneToManyDictionary<Node, Node> ItemToKey { get; }
+        public ImmutableOneToManyDictionary<Node, Key> ItemToKey { get; }
         public string Log { get; }
 
         public Route(
             Graph graph,
             bool allNodesVisited,
-            ImmutableOneToManyDictionary<Node, Node> itemToKey,
+            ImmutableOneToManyDictionary<Node, Key> itemToKey,
             string log)
         {
             Graph = graph;
@@ -22,18 +22,19 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             Log = log;
         }
 
-        public Node? GetItemContents(Node item)
+        public Key? GetItemContents(Node item)
         {
             if (ItemToKey.TryGetValue(item, out var key))
                 return key;
             return null;
         }
 
-        public ImmutableHashSet<Node> GetItemsContainingKey(Node key)
+        public ImmutableHashSet<Node> GetItemsContainingKey(Key key)
         {
             return ItemToKey.GetKeysContainingValue(key);
         }
 
+#if false
         public string GetDependencyTree(Node node, bool keysAsNodes = false)
         {
             var visited = new HashSet<Node>();
@@ -102,6 +103,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 }
             }
         }
+#endif
 
         public RouteSolverResult Solve() => RouteSolver.Default.Solve(this);
     }

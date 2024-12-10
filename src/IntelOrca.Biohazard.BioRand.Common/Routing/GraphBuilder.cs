@@ -1,12 +1,16 @@
 ﻿using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 
 namespace IntelOrca.Biohazard.BioRand.Routing
 {
+    /// <summary>
+    /// Helper for building a new graph to randomize the location
+    /// of key items.
+    /// </summary>
     public class GraphBuilder
     {
-        private readonly List<Node> _nodes = new List<Node>();
+        private readonly List<Key> _keys = [];
+        private readonly List<Node> _nodes = [];
+        private readonly List<Edge> _edges = [];
         private int _id;
 
         private int GetNextId()
@@ -14,86 +18,48 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return ++_id;
         }
 
-        public Node ReusuableKey(int group, string? label)
+        public Key Key(KeyKind kind = KeyKind.Reusuable) => Key(kind: kind);
+        public Key Key(string? label = null, int group = 0, KeyKind kind = KeyKind.Reusuable)
         {
-            var node = new Node(GetNextId(), group, NodeKind.ReusuableKey, label, new Node[0]);
+            var key = new Key(GetNextId(), group, kind, label);
+            _keys.Add(key);
+            return key;
+        }
+
+        public Node Room(string? label = null)
+        {
+            var node = new Node(GetNextId(), 0, NodeKind.Default, label);
             _nodes.Add(node);
             return node;
         }
 
-        public Node ConsumableKey(int group, string? label)
+        public Node Item(Node room) => Item(null, 0, room);
+        public Node Item(string? label, Node room, params Requirement[] requires) => Item(label, 0, room, requires);
+        public Node Item(string? label, int group, Node room, params Requirement[] requires)
         {
-            var node = new Node(GetNextId(), group, NodeKind.ConsumableKey, label, new Node[0]);
-            _nodes.Add(node);
-            return node;
+            var item = new Node(GetNextId(), 0, NodeKind.Item, label);
+            _nodes.Add(item);
+            _edges.Add(new Edge(room, item, [.. requires], false));
+            return item;
         }
 
-        public Node RemovableKey(int group, string? label)
+        public Edge Door(Node sourceRoom, Node targetRoom, params Requirement[] requires)
         {
-            var node = new Node(GetNextId(), group, NodeKind.RemovableKey, label, new Node[0]);
-            _nodes.Add(node);
-            return node;
+            var edge = new Edge(sourceRoom, targetRoom, [.. requires], false);
+            _edges.Add(edge);
+            return edge;
         }
 
-        public Node Item(int group, string? label, params Node[] requires)
+        public Edge OneWay(Node sourceRoom, Node targetRoom, params Requirement[] requires)
         {
-            var node = new Node(GetNextId(), group, NodeKind.Item, label, requires.ToArray());
-            _nodes.Add(node);
-            return node;
+            var edge = new Edge(sourceRoom, targetRoom, [.. requires], true);
+            _edges.Add(edge);
+            return edge;
         }
 
-        public Node AndGate(string? label)
+        public Graph ToGraph()
         {
-            var node = new Node(GetNextId(), 0, NodeKind.AndGate, label, new Node[0]);
-            _nodes.Add(node);
-            return node;
-        }
-
-        public Node AndGate(string? label, params Node[] requires)
-        {
-            var node = new Node(GetNextId(), 0, NodeKind.AndGate, label, requires.ToArray());
-            _nodes.Add(node);
-            return node;
-        }
-
-        public Node OrGate(string? label, params Node[] requires)
-        {
-            var node = new Node(GetNextId(), 0, NodeKind.OrGate, label, requires.ToArray());
-            _nodes.Add(node);
-            return node;
-        }
-
-        public Node OneWay(string? label, params Node[] requires)
-        {
-            var node = new Node(GetNextId(), 0, NodeKind.OneWay, label, requires.ToArray());
-            _nodes.Add(node);
-            return node;
-        }
-
-        public Graph Build()
-        {
-            var edges = new Dictionary<Node, List<Node>>();
-            foreach (var c in _nodes)
-            {
-                foreach (var r in c.Requires)
-                {
-                    if (!edges.TryGetValue(r, out var list))
-                    {
-                        list = new List<Node>();
-                        edges[r] = list;
-                    }
-                    list.Add(c);
-                }
-            }
-
-            return new Graph(
-                _nodes.ToImmutableArray(),
-                edges.ToImmutableDictionary(x => x.Key, x => x.Value.ToImmutableArray()));
-        }
-
-        public Route GenerateRoute(int? seed = null)
-        {
-            return new RouteFinder(seed).Find(Build());
+            return new Graph([.. _keys], [.. _nodes], [.. _edges]);
         }
     }
 }

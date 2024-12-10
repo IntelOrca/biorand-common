@@ -2,12 +2,7 @@
 {
     public enum NodeKind : byte
     {
-        AndGate,
-        OrGate,
-        OneWay,
-        Item,
-        ReusuableKey,
-        ConsumableKey,
-        RemovableKey
+        Default,
+        Item
     }
 }

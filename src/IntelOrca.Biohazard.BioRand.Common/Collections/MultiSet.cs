@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 
-namespace IntelOrca.Biohazard.BioRand.Routing
+namespace IntelOrca.Biohazard.BioRand.Collections
 {
     internal class MultiSet<T> : ICollection<T>, IEnumerable<T>
     {
@@ -91,7 +91,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
     internal class ImmutableMultiSet<T> : ICollection<T>, IEnumerable<T> where T : notnull
     {
-        public static ImmutableMultiSet<Node> Empty { get; } = new ImmutableMultiSet<Node>();
+        public static ImmutableMultiSet<T> Empty { get; } = new ImmutableMultiSet<T>();
 
         private readonly ImmutableDictionary<T, int> _dict = ImmutableDictionary<T, int>.Empty;
 

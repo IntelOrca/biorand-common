@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using IntelOrca.Biohazard.BioRand.Collections;
 
 namespace IntelOrca.Biohazard.BioRand.Routing
 {
@@ -38,22 +39,22 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 route,
                 ImmutableHashSet.CreateRange(route.Graph.Start),
                 ImmutableHashSet.CreateRange(route.Graph.Start.SelectMany(x => route.Graph.GetEdges(x))),
-                ImmutableMultiSet<Node>.Empty);
+                ImmutableMultiSet<Key>.Empty);
         }
 
         private static State Expand(State state)
         {
             var graph = state.Route.Graph;
-            var newVisits = new List<Node>();
+            var newVisits = new List<Edge>();
             do
             {
                 newVisits.Clear();
-                foreach (var node in state.Next)
+                foreach (var edge in state.Next)
                 {
-                    if (!node.Requires.All(x => state.Visited.Contains(x)))
+                    if (!edge.Requires.OfType<Node>().All(state.Visited.Contains))
                         continue;
 
-                    newVisits.Add(node);
+                    newVisits.Add(edge);
                 }
                 state = state.Visit(newVisits);
             } while (newVisits.Count != 0);
@@ -69,7 +70,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
             // Lets first unlock anything that doesn't consume a key
             var safeWays = possibleWays
-                .Where(x => x.Requires.All(x => x.Kind != NodeKind.ConsumableKey))
+                .Where(x => x.Requires.OfType<Key>().All(x => x.Kind != KeyKind.Consumable))
                 .ToArray();
             if (safeWays.Length != 0)
             {
@@ -88,7 +89,8 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     return null;
 
                 var consumeKeys = way.Requires
-                    .Where(x => x.Kind == NodeKind.ConsumableKey)
+                    .OfType<Key>()
+                    .Where(x => x.Kind == KeyKind.Consumable)
                     .ToArray();
                 state = state.UseKeys(consumeKeys);
             }
@@ -102,11 +104,11 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return state;
         }
 
-        private static bool HasAllKeys(State state, Node node)
+        private static bool HasAllKeys(State state, Edge edge)
         {
             var keys = state.Keys;
-            var requiredKeys = node.Requires
-                .Where(x => x.IsKey)
+            var requiredKeys = edge.Requires
+                .OfType<Key>()
                 .ToArray();
             foreach (var g in requiredKeys.GroupBy(x => x))
             {
@@ -124,14 +126,14 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         {
             public Route Route { get; }
             public ImmutableHashSet<Node> Visited { get; }
-            public ImmutableHashSet<Node> Next { get; }
-            public ImmutableMultiSet<Node> Keys { get; }
+            public ImmutableHashSet<Edge> Next { get; }
+            public ImmutableMultiSet<Key> Keys { get; }
 
             public State(
                 Route route,
                 ImmutableHashSet<Node> visited,
-                ImmutableHashSet<Node> next,
-                ImmutableMultiSet<Node> keys)
+                ImmutableHashSet<Edge> next,
+                ImmutableMultiSet<Key> keys)
             {
                 Route = route;
                 Visited = visited;
@@ -139,31 +141,35 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 Keys = keys;
             }
 
-            public State Visit(params Node[] nodes) => Visit((IEnumerable<Node>)nodes);
-            public State Visit(IEnumerable<Node> nodes)
+            public State Visit(params Edge[] edges) => Visit((IEnumerable<Edge>)edges);
+            public State Visit(IEnumerable<Edge> edges)
             {
-                if (!nodes.Any())
+                if (!edges.Any())
                     return this;
 
-                var newNodes = nodes.SelectMany(x => Route.Graph.GetEdges(x));
-                var newKeys = nodes
-                    .Select(x => Route.GetItemContents(x))
+                var newNodes = edges
+                    .Select(x => x.Destination)
+                    .Where(x => !Visited.Contains(x))
+                    .ToArray();
+                var newEdges = newNodes.SelectMany(x => Route.Graph.GetEdges(x));
+                var newKeys = newNodes
+                    .Select(Route.GetItemContents)
                     .Where(x => x != null)
                     .Select(x => x!.Value)
                     .ToArray();
                 return new State(
                     Route,
-                    Visited.Union(nodes),
-                    Next.Except(nodes).Union(newNodes),
+                    Visited.Union(newNodes),
+                    Next.Except(edges).Union(newEdges),
                     Keys.AddRange(newKeys));
             }
 
-            public State AddKey(Node key)
+            public State AddKey(Key key)
             {
                 return new State(Route, Visited, Next, Keys.Add(key));
             }
 
-            public State UseKeys(IEnumerable<Node> keys)
+            public State UseKeys(IEnumerable<Key> keys)
             {
                 if (!keys.Any())
                     return this;
