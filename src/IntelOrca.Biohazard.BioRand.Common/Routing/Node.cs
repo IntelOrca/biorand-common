@@ -2,7 +2,7 @@
 
 namespace IntelOrca.Biohazard.BioRand.Routing
 {
-    public readonly struct Node : IEquatable<Node>, IRequirement
+    public readonly struct Node : IEquatable<Node>
     {
         public int Id { get; }
         public int Group { get; }

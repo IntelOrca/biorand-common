@@ -39,7 +39,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return key;
         }
 
-        public Node Item(int group, string? label, Node source, params IRequirement[] requires)
+        public Node Item(int group, string? label, Node source, params Requirement[] requires)
         {
             var node = new Node(GetNextId(), group, NodeKind.Item, label);
             _nodes.Add(node);
@@ -54,7 +54,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return node;
         }
 
-        public Node AndGate(string? label, Node source, params IRequirement[] requires)
+        public Node AndGate(string? label, Node source, params Requirement[] requires)
         {
             var node = new Node(GetNextId(), 0, NodeKind.Default, label);
             _nodes.Add(node);
@@ -74,7 +74,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return node;
         }
 
-        public Node OneWay(string? label, Node source, params IRequirement[] requires)
+        public Node OneWay(string? label, Node source, params Requirement[] requires)
         {
             var node = new Node(GetNextId(), 0, NodeKind.Default, label);
             _nodes.Add(node);

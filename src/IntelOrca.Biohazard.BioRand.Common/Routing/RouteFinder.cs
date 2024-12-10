@@ -151,8 +151,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         private static List<Key> GetMissingKeys(State state, ImmutableMultiSet<Key> keys, Edge edge)
         {
-            var requiredKeys = edge.Requires
-                .OfType<Key>()
+            var requiredKeys = edge.RequiredKeys
                 .GroupBy(x => x)
                 .ToArray();
 
@@ -223,8 +222,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 result.Add(edge);
 
                 // Remove any keys from inventory if they are consumable
-                var consumableKeys = edge.Requires
-                    .OfType<Key>()
+                var consumableKeys = edge.RequiredKeys
                     .Where(x => x.Kind == KeyKind.Consumable)
                     .ToArray();
                 state = state.UseKey(edge, consumableKeys);
@@ -244,9 +242,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         private static int GetRemovableKeyCount(State state, Key key, Edge edge)
         {
             var selfCount = 0;
-            foreach (var r in edge.Requires)
+            foreach (var r in edge.RequiredKeys)
             {
-                if (r.Equals(key))
+                if (r == key)
                 {
                     selfCount++;
                 }
@@ -297,7 +295,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         {
             var haveList = new List<Key>();
             var missingList = new List<Key>();
-            var requiredKeys = GetRequiredKeys(state, edge)
+            var requiredKeys = edge.RequiredKeys
                 .GroupBy(x => x)
                 .ToArray();
 
@@ -366,30 +364,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             if (checklistItem.Need.Length > 0)
                 return false;
 
-            return edge.Requires
-                .OfType<Node>()
-                .All(state.Visited.Contains);
-        }
-
-        private static Key[] GetRequiredKeys(State state, Edge edge)
-        {
-            var leaves = new List<Key>();
-            GetRequiredKeys(edge);
-            return [.. leaves];
-
-            void GetRequiredKeys(Edge e)
-            {
-                if (state.Visited.Contains(e.Destination))
-                    return;
-
-                foreach (var r in e.Requires)
-                {
-                    if (r is Key k)
-                    {
-                        leaves.Add(k);
-                    }
-                }
-            }
+            return edge.RequiredNodes.All(state.Visited.Contains);
         }
 
         private sealed class State

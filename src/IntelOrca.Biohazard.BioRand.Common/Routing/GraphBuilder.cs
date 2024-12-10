@@ -34,8 +34,8 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         }
 
         public Node Item(Node room) => Item(null, 0, room);
-        public Node Item(string? label, Node room, params IRequirement[] requires) => Item(label, 0, room, requires);
-        public Node Item(string? label, int group, Node room, params IRequirement[] requires)
+        public Node Item(string? label, Node room, params Requirement[] requires) => Item(label, 0, room, requires);
+        public Node Item(string? label, int group, Node room, params Requirement[] requires)
         {
             var item = new Node(GetNextId(), 0, NodeKind.Item, label);
             _nodes.Add(item);
@@ -43,14 +43,14 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return item;
         }
 
-        public Edge Door(Node sourceRoom, Node targetRoom, params IRequirement[] requires)
+        public Edge Door(Node sourceRoom, Node targetRoom, params Requirement[] requires)
         {
             var edge = new Edge(sourceRoom, targetRoom, [.. requires], false);
             _edges.Add(edge);
             return edge;
         }
 
-        public Edge OneWay(Node sourceRoom, Node targetRoom, params IRequirement[] requires)
+        public Edge OneWay(Node sourceRoom, Node targetRoom, params Requirement[] requires)
         {
             var edge = new Edge(sourceRoom, targetRoom, [.. requires], true);
             _edges.Add(edge);
