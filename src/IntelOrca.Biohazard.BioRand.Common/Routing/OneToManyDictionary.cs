@@ -50,7 +50,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         where TOne : notnull
         where TMany : notnull
     {
-        public static ImmutableOneToManyDictionary<Node, Node> Empty { get; } = new ImmutableOneToManyDictionary<Node, Node>();
+        public static ImmutableOneToManyDictionary<TOne, TMany> Empty { get; } = new ImmutableOneToManyDictionary<TOne, TMany>();
 
         private readonly ImmutableDictionary<TOne, TMany> _keyToValue;
         private readonly ImmutableDictionary<TMany, ImmutableHashSet<TOne>> _valueToKeys;

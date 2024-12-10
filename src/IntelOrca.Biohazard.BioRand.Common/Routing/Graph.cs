@@ -6,43 +6,50 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 {
     public sealed class Graph
     {
+        public ImmutableArray<Key> Keys { get; }
         public ImmutableArray<Node> Nodes { get; }
-        public ImmutableDictionary<Node, ImmutableArray<Node>> Edges { get; }
+        public ImmutableArray<Edge> Edges { get; }
+
+        public ImmutableDictionary<Node, ImmutableArray<Edge>> EdgeMap { get; }
         public ImmutableArray<Node> Start { get; }
         public ImmutableArray<ImmutableArray<Node>> Subgraphs { get; }
 
         public Graph(
+            ImmutableArray<Key> keys,
             ImmutableArray<Node> nodes,
-            ImmutableDictionary<Node, ImmutableArray<Node>> edges)
+            ImmutableArray<Edge> edges)
         {
+            Keys = keys;
             Nodes = nodes;
             Edges = edges;
-            Start = nodes
-                .Where(IsStartNode)
-                .ToImmutableArray();
+            EdgeMap = edges
+                .GroupBy(x => x.Source)
+                .ToImmutableDictionary(x => x.Key, x => x.ToImmutableArray());
+
+            var targets = Edges.Select(x => x.Destination).ToImmutableHashSet();
+            Start = nodes.Where(x => !targets.Contains(x)).ToImmutableArray();
+
             Subgraphs = GetSubgraphs();
         }
 
-        public ImmutableArray<Node> GetEdges(Node node)
+        public ImmutableArray<Edge> GetEdges(Node node)
         {
-            if (Edges.TryGetValue(node, out var edges))
-                return edges;
-            return ImmutableArray<Node>.Empty;
+            return EdgeMap.TryGetValue(node, out var edges) ? edges : ([]);
         }
 
-        private string[] GetKeys(Node node)
+        private string[] GetKeys(Edge e)
         {
-            return node.Requires
-                .Where(x => x.IsKey)
+            return e.Requires
+                .OfType<Key>()
                 .Select(e => string.Join(" ", GetIcon(e), $"K<sub>{e.Id}</sub>"))
                 .ToArray();
         }
 
-        private static string GetIcon(Node node)
+        private static string GetIcon(Key k)
         {
-            if (node.Kind == NodeKind.ConsumableKey)
+            if (k.Kind == KeyKind.Consumable)
                 return "fa:fa-triangle-exclamation";
-            if (node.Kind == NodeKind.RemovableKey)
+            if (k.Kind == KeyKind.Removable)
                 return "fa:fa-circle";
             return "";
         }
@@ -74,13 +81,13 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     var edges = GetEdges(n);
                     foreach (var e in edges)
                     {
-                        if (e.Kind == NodeKind.OneWay)
+                        if (e.OneWay)
                         {
-                            end.Add(e);
+                            end.Add(e.Source);
                         }
                         else
                         {
-                            q.Enqueue(e);
+                            q.Enqueue(e.Destination);
                         }
                     }
                 }
@@ -88,13 +95,8 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             }
         }
 
-        private static bool IsStartNode(Node node) => RequiresNothingOrKeys(node) && !node.IsKey;
-        private static bool RequiresNothingOrKeys(Node node) => node.Requires.All(x => x.IsKey);
-
         public string ToMermaid()
         {
-            var keysAsNodes = false;
-
             var mb = new MermaidBuilder();
             mb.Node("S", " ", MermaidShape.Circle);
             for (int gIndex = 0; gIndex < Subgraphs.Length; gIndex++)
@@ -103,9 +105,6 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 mb.BeginSubgraph($"G<sub>{gIndex}</sub>");
                 foreach (var node in g)
                 {
-                    if (node.IsKey && !keysAsNodes)
-                        continue;
-
                     var (letter, shape) = GetNodeLabel(node);
                     mb.Node(GetNodeName(node), $"{letter}<sub>{node.Id}</sub>", shape);
                 }
@@ -114,28 +113,21 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
             foreach (var node in Start)
             {
-                EmitEdge("S", node);
+                mb.Edge("S", GetNodeName(node));
             }
 
             foreach (var edge in Edges)
             {
-                var a = edge.Key;
-                if (a.IsKey && !keysAsNodes)
-                    continue;
-
-                var sourceName = GetNodeName(a);
-                foreach (var b in edge.Value)
-                {
-                    EmitEdge(sourceName, b);
-                }
+                EmitEdge(edge);
             }
             return mb.ToString();
 
-            void EmitEdge(string sourceName, Node b)
+            void EmitEdge(Edge edge)
             {
-                var targetName = GetNodeName(b);
-                var label = string.Join(" + ", GetKeys(b));
-                var edgeType = b.Kind == NodeKind.OneWay
+                var sourceName = GetNodeName(edge.Source);
+                var targetName = GetNodeName(edge.Destination);
+                var label = string.Join(" + ", GetKeys(edge));
+                var edgeType = edge.OneWay
                     ? MermaidEdgeType.Dotted
                     : MermaidEdgeType.Solid;
                 mb.Edge(sourceName, targetName, label, edgeType);
@@ -151,9 +143,6 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 return node.Kind switch
                 {
                     NodeKind.Item => ('I', MermaidShape.Square),
-                    NodeKind.ReusuableKey => ('K', MermaidShape.Hexagon),
-                    NodeKind.ConsumableKey => ('K', MermaidShape.Hexagon),
-                    NodeKind.RemovableKey => ('K', MermaidShape.Hexagon),
                     _ => ('R', MermaidShape.Circle),
                 };
             }

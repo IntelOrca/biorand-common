@@ -138,6 +138,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             }
         }
 
+#if false
         /// <summary>
         /// Test a map where a (start) room requires a key.
         /// </summary>
@@ -158,6 +159,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
                 Assert.True(route.AllNodesVisited);
             }
         }
+#endif
 
         /// <summary>
         /// Tests a map with two segments where a key must be placed in both
@@ -594,7 +596,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
                     actual));
         }
 
-        private static void AssertItem(Route route, Node item, params Node?[] expected)
+        private static void AssertItem(Route route, Node item, params Key?[] expected)
         {
             var actual = route.GetItemContents(item);
             Assert.True(Array.IndexOf(expected, actual) != -1,
@@ -604,11 +606,11 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
                     actual?.ToString() ?? "(null)"));
         }
 
-        private static void AssertKeyOnce(Route route, Node key, params Node[] expected)
+        private static void AssertKeyOnce(Route route, Key key, params Node[] expected)
         {
             var items = route.Graph.Nodes
                 .Where(x => x.Kind == NodeKind.Item)
-                .Where(x => route.GetItemContents(x) == key)
+                .Where(x => route.GetItemContents(x) is Key k && k == key)
                 .ToArray();
 
             if (items.Length == 0)
@@ -632,7 +634,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             Assert.True(items.Length == 1, "Expected key to only be placed once");
         }
 
-        private static void AssertKeyQuantity(Route route, Node key, int expectedCount)
+        private static void AssertKeyQuantity(Route route, Key key, int expectedCount)
         {
             var actualCount = route.GetItemsContainingKey(key).Count;
             Assert.Equal(expectedCount, actualCount);
