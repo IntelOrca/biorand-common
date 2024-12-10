@@ -117,7 +117,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         }
 
         public Node Item(Node room) => Item(null, 0, room);
-        public Node Item(string? label, Node room, params IRequirement[] requires) => Item(label, 0, room);
+        public Node Item(string? label, Node room, params IRequirement[] requires) => Item(label, 0, room, requires);
         public Node Item(string? label, int group, Node room, params IRequirement[] requires)
         {
             var item = new Node(GetNextId(), 0, NodeKind.Item, label);
