@@ -104,7 +104,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             }
         }
 
-        public string ToMermaid()
+        public string ToMermaid(bool useLabels = false)
         {
             var mb = new MermaidBuilder();
             mb.Node("S", " ", MermaidShape.Circle);
@@ -115,7 +115,10 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 foreach (var node in g)
                 {
                     var (letter, shape) = GetNodeLabel(node);
-                    mb.Node(GetNodeName(node), $"{letter}<sub>{node.Id}</sub>", shape);
+                    var label = $"{letter}<sub>{node.Id}</sub>";
+                    if (useLabels && !string.IsNullOrEmpty(node.Label))
+                        label = node.Label;
+                    mb.Node(GetNodeName(node), label, shape);
                 }
                 mb.EndSubgraph();
             }

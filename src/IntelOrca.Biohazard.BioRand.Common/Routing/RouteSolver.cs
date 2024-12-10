@@ -146,7 +146,10 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 if (!edges.Any())
                     return this;
 
-                var newNodes = edges.Select(x => x.Destination).ToArray();
+                var newNodes = edges
+                    .Select(x => x.Destination)
+                    .Where(x => !Visited.Contains(x))
+                    .ToArray();
                 var newEdges = newNodes.SelectMany(x => Route.Graph.GetEdges(x));
                 var newKeys = newNodes
                     .Select(Route.GetItemContents)

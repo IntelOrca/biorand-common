@@ -105,6 +105,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
                 foreach (var e in satisfied)
                 {
+                    if (state.Visited.Contains(e.Destination))
+                        continue;
+
                     if (e.OneWay)
                     {
                         newState = newState.AddOneWay(e.Destination);
