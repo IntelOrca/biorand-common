@@ -18,6 +18,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         public Route Find(Graph input)
         {
+            var m = input.ToMermaid();
             var state = new State(input);
             state = DoSubgraph(state, input.Start, first: true, _rng);
             return GetRoute(state);
@@ -109,7 +110,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     if (state.Visited.Contains(e.Destination))
                         continue;
 
-                    if (e.OneWay)
+                    if (e.Kind == EdgeKind.OneWay || e.Kind == EdgeKind.NoReturn)
                     {
                         newState = newState.AddOneWay(e.Destination);
                     }

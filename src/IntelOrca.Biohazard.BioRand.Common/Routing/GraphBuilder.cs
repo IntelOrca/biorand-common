@@ -37,29 +37,47 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         public Node Item(string? label, Node room, params Requirement[] requires) => Item(label, 0, room, requires);
         public Node Item(string? label, int group, Node room, params Requirement[] requires)
         {
-            var item = new Node(GetNextId(), 0, NodeKind.Item, label);
+            var item = new Node(GetNextId(), group, NodeKind.Item, label);
             _nodes.Add(item);
-            _edges.Add(new Edge(room, item, [.. requires], false));
+            Edge(room, item, EdgeKind.TwoWay, requires);
             return item;
+        }
+
+        public Edge Edge(Node sourceRoom, Node targetRoom, EdgeKind kind, params Requirement[] requires)
+        {
+            var edge = new Edge(sourceRoom, targetRoom, [.. requires], kind);
+            _edges.Add(edge);
+            return edge;
         }
 
         public Edge Door(Node sourceRoom, Node targetRoom, params Requirement[] requires)
         {
-            var edge = new Edge(sourceRoom, targetRoom, [.. requires], false);
-            _edges.Add(edge);
-            return edge;
+            return Edge(sourceRoom, targetRoom, EdgeKind.TwoWay, requires);
+        }
+
+        public Edge BlockedDoor(Node sourceRoom, Node targetRoom, params Requirement[] requires)
+        {
+            return Edge(sourceRoom, targetRoom, EdgeKind.UnlockTwoWay, requires);
         }
 
         public Edge OneWay(Node sourceRoom, Node targetRoom, params Requirement[] requires)
         {
-            var edge = new Edge(sourceRoom, targetRoom, [.. requires], true);
-            _edges.Add(edge);
-            return edge;
+            return Edge(sourceRoom, targetRoom, EdgeKind.OneWay, requires);
+        }
+
+        public Edge NoReturn(Node sourceRoom, Node targetRoom, params Requirement[] requires)
+        {
+            return Edge(sourceRoom, targetRoom, EdgeKind.NoReturn, requires);
         }
 
         public Graph ToGraph()
         {
             return new Graph([.. _keys], [.. _nodes], [.. _edges]);
+        }
+
+        public Route GenerateRoute(int? seed = null)
+        {
+            return new RouteFinder(seed).Find(ToGraph());
         }
     }
 }

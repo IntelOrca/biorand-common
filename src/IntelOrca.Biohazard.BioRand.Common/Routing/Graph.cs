@@ -50,16 +50,17 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         private string[] GetKeys(Edge e)
         {
             return e.Requires
-                .OfType<Key>()
                 .Select(e => string.Join(" ", GetIcon(e), $"K<sub>{e.Id}</sub>"))
                 .ToArray();
         }
 
-        private static string GetIcon(Key k)
+        private static string GetIcon(Requirement r)
         {
-            if (k.Kind == KeyKind.Consumable)
+            if (r.Key is Key k1 && k1.Kind == KeyKind.Consumable)
                 return "fa:fa-triangle-exclamation";
-            if (k.Kind == KeyKind.Removable)
+            if (r.Key is Key k2 && k2.Kind == KeyKind.Removable)
+                return "fa:fa-circle";
+            if (r.IsNode)
                 return "fa:fa-circle";
             return "";
         }
@@ -91,7 +92,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     var edges = GetEdges(n);
                     foreach (var e in edges)
                     {
-                        if (e.OneWay)
+                        if (e.Kind == EdgeKind.OneWay || e.Kind == EdgeKind.NoReturn)
                         {
                             end.Add(e.Source);
                         }
@@ -140,9 +141,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 var sourceName = GetNodeName(edge.Source);
                 var targetName = GetNodeName(edge.Destination);
                 var label = string.Join(" + ", GetKeys(edge));
-                var edgeType = edge.OneWay
-                    ? MermaidEdgeType.Dotted
-                    : MermaidEdgeType.Solid;
+                var edgeType = edge.Kind == EdgeKind.TwoWay
+                    ? MermaidEdgeType.Solid
+                    : MermaidEdgeType.Dotted;
                 mb.Edge(sourceName, targetName, label, edgeType);
             }
 
