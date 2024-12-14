@@ -37,8 +37,8 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         {
             return new State(
                 route,
-                ImmutableHashSet.CreateRange(route.Graph.Start),
-                ImmutableHashSet.CreateRange(route.Graph.Start.SelectMany(x => route.Graph.GetEdges(x))),
+                [route.Graph.Start],
+                ImmutableHashSet.CreateRange(route.Graph.GetEdgesFrom(route.Graph.Start)),
                 ImmutableMultiSet<Key>.Empty);
         }
 
@@ -151,7 +151,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     .Select(x => x.Destination)
                     .Where(x => !Visited.Contains(x))
                     .ToArray();
-                var newEdges = newNodes.SelectMany(x => Route.Graph.GetEdges(x));
+                var newEdges = newNodes.SelectMany(x => Route.Graph.GetEdgesFrom(x));
                 var newKeys = newNodes
                     .Select(Route.GetItemContents)
                     .Where(x => x != null)

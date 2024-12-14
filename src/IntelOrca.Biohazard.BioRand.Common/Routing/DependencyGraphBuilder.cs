@@ -63,6 +63,13 @@
             return node;
         }
 
+        public Node NoReturn(string? label, Node source, params Requirement[] requires)
+        {
+            var node = _graphBuilder.Room(label);
+            _graphBuilder.NoReturn(source, node, requires);
+            return node;
+        }
+
         public Graph Build()
         {
             return _graphBuilder.ToGraph();

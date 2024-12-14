@@ -18,7 +18,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         public Route Find(Graph input)
         {
-            var m = input.ToMermaid();
+            var m = input.ToMermaid(true);
             var state = new State(input);
             state = DoSubgraph(state, input.Start, first: true, _rng);
             return GetRoute(state);
@@ -33,24 +33,15 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 string.Join("\n", state.Log));
         }
 
-        private static State DoSubgraph(State state, IEnumerable<Node> start, bool first, Random rng)
+        private static State DoSubgraph(State state, Node start, bool first, Random rng)
         {
-            var keys = new List<Key>();
-            var visited = new List<Node>();
+            var guaranteedRequirements = GetGuaranteedRequirements(state, start);
+            var keys = guaranteedRequirements.Where(x => x.IsKey).Select(x => x.Key!.Value).ToList();
+            var visited = guaranteedRequirements.Where(x => !x.IsKey).Select(x => x.Node!.Value).ToList();
             var next = new List<Edge>();
-            var toVisit = new List<Node>();
-            foreach (var n in start)
-            {
-                // var deps = GetHardDependencies(state, n);
-                // keys.AddRange(deps.Where(x => x.IsKey));
-                // visited.AddRange(deps.Where(x => !x.IsKey));
-                // if (first)
-                //     next.Add(n);
-                // else
-                toVisit.Add(n);
-            }
+            var toVisit = new List<Node> { start };
 
-            state = state.AddLog($"Begin subgraph {start.First()}");
+            state = state.AddLog($"Begin subgraph {start}");
             state = state.Clear(visited, keys, next);
             foreach (var v in toVisit)
                 state = state.VisitNode(v);
@@ -107,16 +98,23 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
                 foreach (var e in satisfied)
                 {
-                    if (state.Visited.Contains(e.Destination))
-                        continue;
-
-                    if (e.Kind == EdgeKind.OneWay || e.Kind == EdgeKind.NoReturn)
+                    if (state.Visited.Contains(e.Source))
                     {
-                        newState = newState.AddOneWay(e.Destination);
+                        if (state.Visited.Contains(e.Destination))
+                            continue;
+
+                        if (e.Kind == EdgeKind.OneWay || e.Kind == EdgeKind.NoReturn)
+                        {
+                            newState = newState.AddOneWay(e.Destination);
+                        }
+                        else
+                        {
+                            newState = newState.VisitNode(e.Destination);
+                        }
                     }
                     else
                     {
-                        newState = newState.VisitNode(e.Destination);
+                        newState = newState.VisitNode(e.Source);
                     }
                 }
                 state = newState;
@@ -204,7 +202,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             var subGraphs = state.OneWay.ToArray();
             foreach (var n in subGraphs)
             {
-                state = DoSubgraph(state, new[] { n }, first: false, rng);
+                state = DoSubgraph(state, n, first: false, rng);
             }
             return state;
         }
@@ -260,37 +258,10 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return selfCount + (minCount ?? 0);
         }
 
-#if false
-        private static HashSet<Node> GetHardDependencies(State state, Node node)
+        private static HashSet<Requirement> GetGuaranteedRequirements(State state, Node root)
         {
-            var set = new HashSet<Node>();
-            Recurse(node);
-            return set;
-
-            void Recurse(Node node)
-            {
-                foreach (var r in node.Requires)
-                {
-                    if (r.IsKey)
-                    {
-                        var items = state.ItemToKey.GetKeysContainingValue(r);
-                        if (items.Any())
-                        {
-                            var item = items.FirstOrDefault();
-                            set.Add(r);
-                            set.Add(item);
-                            Recurse(item);
-                        }
-                    }
-                    else
-                    {
-                        set.Add(r);
-                        Recurse(r);
-                    }
-                }
-            }
+            return RequirementFinderState.FindRequirements(state, root);
         }
-#endif
 
         private static ChecklistItem GetChecklistItem(State state, Edge edge)
         {
@@ -431,9 +402,19 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                         result.SpareItems = SpareItems.Add(node);
                     }
                 }
-                result.Next = Next.Union(Input.GetEdges(node));
+
+                var fromEdges = Input.GetEdgesFrom(node);
+                var toEdges = Input.GetEdgesTo(node).Where(x => x.Kind == EdgeKind.TwoWay).ToArray();
+                var edges = fromEdges.Concat(toEdges).Where(x => !result.IsEdgeVisited(x)).ToArray();
+
+                result.Next = Next.Union(edges);
                 result.Log = Log.Add($"Satisfied node: {node}");
                 return result;
+            }
+
+            private bool IsEdgeVisited(Edge edge)
+            {
+                return Visited.Contains(edge.Source) && Visited.Contains(edge.Destination);
             }
 
             public State PlaceKey(Node item, Key key)
@@ -459,6 +440,95 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 var state = new State(this);
                 state.Log = Log.Add(message);
                 return state;
+            }
+        }
+
+        private class RequirementFinderState
+        {
+            public State State { get; }
+            public ImmutableHashSet<Node> Nodes { get; }
+            public ImmutableList<Edge> Edges { get; }
+
+            public Graph Input => State.Input;
+
+            private RequirementFinderState(State state, ImmutableHashSet<Node> nodes, ImmutableList<Edge> edges)
+            {
+                State = state;
+                Edges = edges;
+                Nodes = nodes;
+            }
+
+            public static HashSet<Requirement> FindRequirements(State state, Node end)
+            {
+                var result = new HashSet<Requirement>();
+                var paths = FindPaths(state, end);
+                if (paths.Length != 0)
+                {
+                    result.UnionWith(paths[0].Requirements);
+                    foreach (var p in paths.Skip(1))
+                    {
+                        result.IntersectWith(p.Requirements);
+                    }
+                }
+                return result;
+            }
+
+            public static RequirementFinderState[] FindPaths(State state, Node end)
+            {
+                var finderState = new RequirementFinderState(state, [end], []);
+                var result = finderState.Continue(end).ToArray();
+                return result;
+            }
+
+            private IEnumerable<RequirementFinderState> Continue(Node target)
+            {
+                var edges = Input.GetEdgesFrom(target)
+                    .Concat(Input.GetEdgesTo(target))
+                    .Where(x => !Nodes.Contains(x.Source) || !Nodes.Contains(x.Destination))
+                    .ToArray();
+                return Continue(target, edges);
+            }
+
+            private IEnumerable<RequirementFinderState> Continue(Node target, IEnumerable<Edge> edges)
+            {
+                if (ReachedEnd)
+                {
+                    yield return this;
+                    yield break;
+                }
+
+                foreach (var edge in edges)
+                {
+                    var other = edge.Source == target ? edge.Destination : edge.Source;
+                    var choice = Fork(other, edge);
+                    foreach (var c in choice.Continue(other))
+                    {
+                        yield return c;
+                    }
+                }
+            }
+
+            public RequirementFinderState Fork(Node node, Edge edge)
+            {
+                return new RequirementFinderState(State, Nodes.Add(node), Edges.Add(edge));
+            }
+
+            public bool ReachedEnd => Edges.Count != 0 && Edges.Last().Contains(Input.Start);
+
+            public Requirement[] Requirements
+            {
+                get
+                {
+                    if (Edges.Count == 0)
+                        return [];
+
+                    var endNode = Edges[0].Destination;
+                    return Edges
+                        .SelectMany(x => x.Requires)
+                        .Where(x => x.IsNode || (x.IsKey && x.Key!.Value.Kind == KeyKind.Reusuable))
+                        .Concat(Nodes.Where(x => x != endNode).Select(x => new Requirement(x)))
+                        .ToArray();
+                }
             }
         }
     }

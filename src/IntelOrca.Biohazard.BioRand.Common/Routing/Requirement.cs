@@ -7,6 +7,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         private readonly object _value;
 
         public int Id => _value == null ? -1 : IsKey ? ((Key)_value).Id : ((Node)_value).Id;
+        public string? Label => _value == null ? null : IsKey ? ((Key)_value).Label : ((Node)_value).Label;
         public bool IsKey => _value is Key;
         public bool IsNode => _value is Node;
         public bool IsUninitialized => _value == null;

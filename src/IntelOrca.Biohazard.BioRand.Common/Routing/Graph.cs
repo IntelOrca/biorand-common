@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using IntelOrca.Biohazard.BioRand.Graphing;
@@ -13,7 +14,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         public ImmutableDictionary<Node, ImmutableArray<Edge>> EdgeMap { get; }
         public ImmutableDictionary<Node, ImmutableArray<Edge>> InverseEdgeMap { get; }
-        public ImmutableArray<Node> Start { get; }
+        public Node Start { get; }
         public ImmutableArray<ImmutableArray<Node>> Subgraphs { get; }
 
         public Graph(
@@ -21,6 +22,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             ImmutableArray<Node> nodes,
             ImmutableArray<Edge> edges)
         {
+            if (nodes.IsDefaultOrEmpty)
+                throw new ArgumentException("Graph contains no nodes", nameof(nodes));
+
             Keys = keys;
             Nodes = nodes;
             Edges = edges;
@@ -30,14 +34,11 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             InverseEdgeMap = edges
                 .GroupBy(x => x.Destination)
                 .ToImmutableDictionary(x => x.Key, x => x.ToImmutableArray());
-
-            var targets = Edges.Select(x => x.Destination).ToImmutableHashSet();
-            Start = nodes.Where(x => !targets.Contains(x)).ToImmutableArray();
-
+            Start = nodes.First();
             Subgraphs = GetSubgraphs();
         }
 
-        public ImmutableArray<Edge> GetEdges(Node node)
+        public ImmutableArray<Edge> GetEdgesFrom(Node node)
         {
             return EdgeMap.TryGetValue(node, out var edges) ? edges : [];
         }
@@ -47,11 +48,17 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return InverseEdgeMap.TryGetValue(node, out var edges) ? edges : [];
         }
 
-        private string[] GetKeys(Edge e)
+        private string[] GetKeys(Edge e, bool useLabels)
         {
             return e.Requires
-                .Select(e => string.Join(" ", GetIcon(e), $"K<sub>{e.Id}</sub>"))
+                .Select(r => string.Join(" ", GetIcon(r), GetLabel(r)))
                 .ToArray();
+
+            string GetLabel(Requirement r)
+            {
+                var result = $"K<sub>{r.Id}</sub>";
+                return useLabels ? r.Label ?? result : result;
+            }
         }
 
         private static string GetIcon(Requirement r)
@@ -69,11 +76,11 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         {
             var graphs = new List<ImmutableArray<Node>>();
             var visited = new HashSet<Node>();
-            var next = Start as IEnumerable<Node>;
+            var next = new[] { Start };
             while (next.Any())
             {
                 var (g, end) = GetEndNodes(next);
-                graphs.Add(g.ToImmutableArray());
+                graphs.Add([.. g]);
                 next = end;
             }
             return graphs.ToImmutableArray();
@@ -86,15 +93,18 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 while (q.Count != 0)
                 {
                     var n = q.Dequeue();
-                    visited.Add(n);
+                    if (!visited.Add(n))
+                        continue;
+
                     nodes.Add(n);
 
-                    var edges = GetEdges(n);
-                    foreach (var e in edges)
+                    var edges = GetEdgesFrom(n);
+                    var inverseEdges = GetEdgesTo(n).Where(x => x.Kind == EdgeKind.TwoWay);
+                    foreach (var e in edges.Concat(inverseEdges))
                     {
                         if (e.Kind == EdgeKind.OneWay || e.Kind == EdgeKind.NoReturn)
                         {
-                            end.Add(e.Source);
+                            end.Add(e.Destination);
                         }
                         else
                         {
@@ -125,11 +135,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 mb.EndSubgraph();
             }
 
-            foreach (var node in Start)
-            {
-                mb.Edge("S", GetNodeName(node));
-            }
-
+            mb.Edge("S", GetNodeName(Start));
             foreach (var edge in Edges)
             {
                 EmitEdge(edge);
@@ -140,7 +146,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             {
                 var sourceName = GetNodeName(edge.Source);
                 var targetName = GetNodeName(edge.Destination);
-                var label = string.Join(" + ", GetKeys(edge));
+                var label = string.Join(" + ", GetKeys(edge, useLabels));
                 var edgeType = edge.Kind == EdgeKind.TwoWay
                     ? MermaidEdgeType.Solid
                     : MermaidEdgeType.Dotted;

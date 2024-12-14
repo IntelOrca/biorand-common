@@ -15,6 +15,8 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         public IEnumerable<Key> RequiredKeys => requires.Where(x => x.IsKey).Select(x => x.Key!.Value);
         public IEnumerable<Node> RequiredNodes => requires.Where(x => x.IsNode).Select(x => x.Node!.Value);
 
+        public bool Contains(Node n) => source == n || destination == n;
+
         public override string ToString()
         {
             var requires = Requires.Length == 0 ? "" : $" [{string.Join(", ", Requires)}] ";
@@ -42,7 +44,6 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         /// <summary>
         /// Player can go either way through the edge once the requirements have been
         /// satisfied. They can only be initially satisfied from one direction though.
-        /// If there are no requirements, then the door is treated as <see cref="OneWay"/>.
         /// Example would be a door with chains, the bolt cutter must be used from
         /// one side, but afterwards, the door is two way.
         /// </summary>
