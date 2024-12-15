@@ -621,6 +621,41 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             }
         }
 
+        /// <summary>
+        /// Tests that keys only get placed in items with a group mask that
+        /// fits the key's mask.
+        /// </summary>
+        [Fact]
+        public void KeysRestrictedToZones()
+        {
+            for (var i = 0; i < Retries; i++)
+            {
+                var builder = new DependencyGraphBuilder();
+
+                var key1 = builder.ReusuableKey(1, "KEY 1");
+                var key2 = builder.ReusuableKey(2, "KEY 2");
+                var key3 = builder.ReusuableKey(3, "KEY 3");
+
+                var room0 = builder.AndGate("ROOM 0");
+                var room1 = builder.AndGate("ROOM 3", room0, key1);
+                var room2 = builder.AndGate("ROOM 4", room0, key2);
+                var room3 = builder.AndGate("ROOM 5", room0, key3);
+                var room4 = builder.OrGate("ROOM 6", room1, room2, room3);
+
+                var item1 = builder.Item(1, "ITEM 1", room0);
+                var item2 = builder.Item(2, "ITEM 2", room0);
+                var item3 = builder.Item(3, "ITEM 3", room0);
+                var item7 = builder.Item(7, "ITEM 7", room0);
+
+                var route = builder.GenerateRoute(i);
+
+                Assert.True(route.AllNodesVisited);
+                AssertKeyOnce(route, key1, item1, item3, item7);
+                AssertKeyOnce(route, key2, item2, item3, item7);
+                AssertKeyOnce(route, key3, item3, item7);
+            }
+        }
+
         private static void AssertItemNotFulfilled(Route route, Node item)
         {
             var actual = route.GetItemContents(item);

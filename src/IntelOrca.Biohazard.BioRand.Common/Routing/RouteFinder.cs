@@ -183,7 +183,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 var found = false;
                 for (var j = 0; j < available.Count; j++)
                 {
-                    if (available[j].Group == keys[i].Group)
+                    var itemGroup = available[j].Group;
+                    var keyGroup = keys[i].Group;
+                    if ((itemGroup & keyGroup) == keyGroup)
                     {
                         result[i] = available[j];
                         available.RemoveAt(j);
