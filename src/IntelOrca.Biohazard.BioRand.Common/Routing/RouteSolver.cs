@@ -38,7 +38,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return new State(
                 route,
                 [route.Graph.Start],
-                ImmutableHashSet.CreateRange(route.Graph.GetEdgesFrom(route.Graph.Start)),
+                ImmutableHashSet.CreateRange(route.Graph.GetApplicableEdgesFrom(route.Graph.Start)),
                 ImmutableMultiSet<Key>.Empty);
         }
 
@@ -51,7 +51,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 newVisits.Clear();
                 foreach (var edge in state.Next)
                 {
-                    if (!edge.Requires.OfType<Node>().All(state.Visited.Contains))
+                    if (!edge.RequiredNodes.All(state.Visited.Contains))
+                        continue;
+                    if (edge.RequiredKeys.Any())
                         continue;
 
                     newVisits.Add(edge);
@@ -70,7 +72,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
             // Lets first unlock anything that doesn't consume a key
             var safeWays = possibleWays
-                .Where(x => x.Requires.OfType<Key>().All(x => x.Kind != KeyKind.Consumable))
+                .Where(x => x.RequiredKeys.All(x => x.Kind != KeyKind.Consumable))
                 .ToArray();
             if (safeWays.Length != 0)
             {
@@ -88,8 +90,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 if (!HasAllKeys(state, way))
                     return null;
 
-                var consumeKeys = way.Requires
-                    .OfType<Key>()
+                var consumeKeys = way.RequiredKeys
                     .Where(x => x.Kind == KeyKind.Consumable)
                     .ToArray();
                 state = state.UseKeys(consumeKeys);
@@ -107,10 +108,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         private static bool HasAllKeys(State state, Edge edge)
         {
             var keys = state.Keys;
-            var requiredKeys = edge.Requires
-                .OfType<Key>()
-                .ToArray();
-            foreach (var g in requiredKeys.GroupBy(x => x))
+            foreach (var g in edge.RequiredKeys.GroupBy(x => x))
             {
                 var have = keys.GetCount(g.Key);
                 var need = g.Count();
@@ -147,8 +145,8 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 if (!edges.Any())
                     return this;
 
-                var newNodes = edges
-                    .Select(x => x.Destination)
+                var edgeNodes = edges.Select(x => x.Destination).Concat(edges.Select(x => x.Source));
+                var newNodes = edgeNodes
                     .Where(x => !Visited.Contains(x))
                     .ToArray();
                 var newEdges = newNodes.SelectMany(x => Route.Graph.GetEdgesFrom(x));

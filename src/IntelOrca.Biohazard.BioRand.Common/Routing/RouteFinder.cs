@@ -240,27 +240,12 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         /// <exception cref="NotImplementedException"></exception>
         private static int GetRemovableKeyCount(State state, Key key, Edge edge)
         {
-            var selfCount = 0;
-            foreach (var r in edge.RequiredKeys)
-            {
-                if (r == key)
-                {
-                    selfCount++;
-                }
-            }
-            var edges = state.Input.GetEdgesTo(edge.Source);
-            int? minCount = null;
-            foreach (var e in edges)
-            {
-                var c = GetRemovableKeyCount(state, key, e);
-                minCount = minCount is int mc ? Math.Min(mc, c) : c;
-            }
-            return selfCount + (minCount ?? 0);
+            return RequirementFinderState.GetRemovableKeyCount(state, edge.Destination, key);
         }
 
         private static HashSet<Requirement> GetGuaranteedRequirements(State state, Node root)
         {
-            return RequirementFinderState.FindRequirements(state, root);
+            return RequirementFinderState.FindReusableRequirements(state, root);
         }
 
         private static ChecklistItem GetChecklistItem(State state, Edge edge)
@@ -403,9 +388,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     }
                 }
 
-                var fromEdges = Input.GetEdgesFrom(node);
-                var toEdges = Input.GetEdgesTo(node).Where(x => x.Kind == EdgeKind.TwoWay).ToArray();
-                var edges = fromEdges.Concat(toEdges).Where(x => !result.IsEdgeVisited(x)).ToArray();
+                var edges = Input.GetApplicableEdgesFrom(node)
+                    .Where(x => !result.IsEdgeVisited(x))
+                    .ToArray();
 
                 result.Next = Next.Union(edges);
                 result.Log = Log.Add($"Satisfied node: {node}");
@@ -458,7 +443,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 Nodes = nodes;
             }
 
-            public static HashSet<Requirement> FindRequirements(State state, Node end)
+            public static HashSet<Requirement> FindReusableRequirements(State state, Node end)
             {
                 var result = new HashSet<Requirement>();
                 var paths = FindPaths(state, end);
@@ -473,6 +458,18 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 return result;
             }
 
+            public static int GetRemovableKeyCount(State state, Node end, Key find)
+            {
+                var result = (int?)null;
+                var paths = FindPaths(state, end);
+                foreach (var p in paths)
+                {
+                    var c = p.Requirements.Count(x => x.Key is Key k && k == find);
+                    result = result is int r ? Math.Min(r, c) : c;
+                }
+                return result ?? 0;
+            }
+
             public static RequirementFinderState[] FindPaths(State state, Node end)
             {
                 var finderState = new RequirementFinderState(state, [end], []);
@@ -482,8 +479,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
             private IEnumerable<RequirementFinderState> Continue(Node target)
             {
-                var edges = Input.GetEdgesFrom(target)
-                    .Concat(Input.GetEdgesTo(target))
+                var edges = Input.GetApplicableEdgesTo(target)
                     .Where(x => !Nodes.Contains(x.Source) || !Nodes.Contains(x.Destination))
                     .ToArray();
                 return Continue(target, edges);
@@ -513,7 +509,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 return new RequirementFinderState(State, Nodes.Add(node), Edges.Add(edge));
             }
 
-            public bool ReachedEnd => Edges.Count != 0 && Edges.Last().Contains(Input.Start);
+            public bool ReachedEnd => Edges.Count == 0
+                ? Nodes.Contains(Input.Start)
+                : Edges.Last().Contains(Input.Start);
 
             public Requirement[] Requirements
             {
@@ -525,7 +523,6 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     var endNode = Edges[0].Destination;
                     return Edges
                         .SelectMany(x => x.Requires)
-                        .Where(x => x.IsNode || (x.IsKey && x.Key!.Value.Kind == KeyKind.Reusuable))
                         .Concat(Nodes.Where(x => x != endNode).Select(x => new Requirement(x)))
                         .ToArray();
                 }

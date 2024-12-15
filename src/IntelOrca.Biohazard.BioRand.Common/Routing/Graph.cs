@@ -48,6 +48,20 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return InverseEdgeMap.TryGetValue(node, out var edges) ? edges : [];
         }
 
+        public ImmutableArray<Edge> GetApplicableEdgesFrom(Node node)
+        {
+            var from = GetEdgesFrom(node);
+            var to = GetEdgesTo(node).Where(x => x.Kind == EdgeKind.TwoWay);
+            return from.Concat(to).ToImmutableArray();
+        }
+
+        public ImmutableArray<Edge> GetApplicableEdgesTo(Node node)
+        {
+            var from = GetEdgesFrom(node).Where(x => x.Kind == EdgeKind.TwoWay);
+            var to = GetEdgesTo(node);
+            return from.Concat(to).ToImmutableArray();
+        }
+
         private string[] GetKeys(Edge e, bool useLabels)
         {
             return e.Requires
@@ -98,9 +112,8 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
                     nodes.Add(n);
 
-                    var edges = GetEdgesFrom(n);
-                    var inverseEdges = GetEdgesTo(n).Where(x => x.Kind == EdgeKind.TwoWay);
-                    foreach (var e in edges.Concat(inverseEdges))
+                    var edges = GetApplicableEdgesFrom(n);
+                    foreach (var e in edges)
                     {
                         if (e.Kind == EdgeKind.OneWay || e.Kind == EdgeKind.NoReturn)
                         {

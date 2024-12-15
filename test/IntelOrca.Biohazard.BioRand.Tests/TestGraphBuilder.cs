@@ -62,5 +62,28 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             var route = new RouteFinder().Find(graph);
             Assert.Equal(7, route.ItemToKey.Count);
         }
+
+        [Fact]
+        public void Example_RE2R()
+        {
+            var builder = new GraphBuilder();
+            var gasStationKey = builder.Key("Gas Station Key");
+
+            var outside = builder.Room("GAS STATION OUTSIDE");
+            var shop = builder.Room("GAS STATION SHOP");
+            var corridor = builder.Room("GAS STATION CORRIDOR");
+            var backRoom = builder.Room("GAS STATION BACK ROOM");
+
+            builder.Door(outside, shop);
+            builder.Door(shop, corridor);
+            builder.OneWay(corridor, backRoom);
+            builder.Door(backRoom, shop, gasStationKey);
+            var item0 = builder.Item("SHOP ITEM 1", shop);
+            var item1 = builder.Item("SHOP ITEM 2", shop);
+            var item2 = builder.Item("BACK ROOM ITEM 1", backRoom);
+            var item3 = builder.Item("BACK ROOM ITEM 2", backRoom);
+
+            var route = builder.GenerateRoute();
+        }
     }
 }
