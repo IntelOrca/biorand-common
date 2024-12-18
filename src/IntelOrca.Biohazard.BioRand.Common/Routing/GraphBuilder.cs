@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace IntelOrca.Biohazard.BioRand.Routing
 {
@@ -45,8 +47,70 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         public Edge Edge(Node sourceRoom, Node targetRoom, EdgeKind kind, params Requirement[] requires)
         {
+            var index = _edges.FindIndex(x => x.Source == sourceRoom && x.Destination == targetRoom);
+            if (index != -1)
+            {
+                var existingEdge = _edges[index];
+                if (existingEdge.Kind != kind)
+                    throw new Exception("Duplicate edge added with different kind");
+                if (!existingEdge.Requires.SequenceEqual(requires))
+                    throw new Exception("Duplicate edge added with different requirements");
+
+                return existingEdge;
+            }
+            index = _edges.FindIndex(x => x.Source == targetRoom && x.Destination == sourceRoom);
+            if (index != -1)
+            {
+                var existingEdge = _edges[index];
+                if (existingEdge.Kind == EdgeKind.TwoWay && kind == EdgeKind.TwoWay)
+                {
+                    if (existingEdge.Requires.SequenceEqual(requires))
+                    {
+                        return existingEdge;
+                    }
+                    else
+                    {
+                        if (existingEdge.Requires.Length != 0)
+                        {
+                            if (requires.Length != 0)
+                            {
+                                throw new Exception("Duplicate inverse edge added with different requirements");
+                            }
+                            return existingEdge;
+                        }
+                        // Allow replacement of 0 requirements
+                    }
+                }
+                else if (existingEdge.Kind == EdgeKind.NoReturn || kind == EdgeKind.NoReturn)
+                {
+                    throw new Exception("Duplicate inverse edge added, one of which is set to NoReturn");
+                }
+                else if (existingEdge.Kind == EdgeKind.OneWay || kind == EdgeKind.OneWay)
+                {
+                    throw new Exception("Duplicate inverse edge added, one of which is set to OneWay");
+                }
+                else if (existingEdge.Kind == EdgeKind.TwoWay || kind == EdgeKind.UnlockTwoWay)
+                {
+                    if (existingEdge.Requires.Length != 0)
+                        throw new Exception("Duplicate inverse edge found with requirements when adding unblock");
+                }
+                else if (existingEdge.Kind == EdgeKind.UnlockTwoWay || kind == EdgeKind.TwoWay)
+                {
+                    if (requires.Length != 0)
+                        throw new Exception("Duplicate inverse unblock edge found when this side has requirements");
+                    return _edges[index];
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
+
             var edge = new Edge(sourceRoom, targetRoom, [.. requires], kind);
-            _edges.Add(edge);
+            if (index != -1)
+                _edges[index] = edge;
+            else
+                _edges.Add(edge);
             return edge;
         }
 

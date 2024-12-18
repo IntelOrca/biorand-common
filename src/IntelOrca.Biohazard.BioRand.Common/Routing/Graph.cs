@@ -90,12 +90,16 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         {
             var graphs = new List<ImmutableArray<Node>>();
             var visited = new HashSet<Node>();
-            var next = new[] { Start };
-            while (next.Any())
+            var unvisited = new HashSet<Node>(Nodes);
+            while (unvisited.Count != 0)
             {
-                var (g, end) = GetEndNodes(next);
-                graphs.Add([.. g]);
-                next = end;
+                var next = new[] { unvisited.First() };
+                while (next.Any())
+                {
+                    var (g, end) = GetEndNodes(next);
+                    graphs.Add([.. g]);
+                    next = end;
+                }
             }
             return graphs.ToImmutableArray();
 
@@ -110,6 +114,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     if (!visited.Add(n))
                         continue;
 
+                    unvisited.Remove(n);
                     nodes.Add(n);
 
                     var edges = GetApplicableEdgesFrom(n);
@@ -121,6 +126,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                         }
                         else
                         {
+                            q.Enqueue(e.Source);
                             q.Enqueue(e.Destination);
                         }
                     }
@@ -129,7 +135,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             }
         }
 
-        public string ToMermaid(bool useLabels = false)
+        public string ToMermaid(bool useLabels = false, bool includeItems = true)
         {
             var mb = new MermaidBuilder();
             mb.Node("S", " ", MermaidShape.Circle);
@@ -139,6 +145,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 mb.BeginSubgraph($"G<sub>{gIndex}</sub>");
                 foreach (var node in g)
                 {
+                    if (!includeItems && node.IsItem)
+                        continue;
+
                     var (letter, shape) = GetNodeLabel(node);
                     var label = $"{letter}<sub>{node.Id}</sub>";
                     if (useLabels && !string.IsNullOrEmpty(node.Label))
@@ -151,6 +160,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             mb.Edge("S", GetNodeName(Start));
             foreach (var edge in Edges)
             {
+                if (!includeItems && edge.Destination.IsItem)
+                    continue;
+
                 EmitEdge(edge);
             }
             return mb.ToString();
@@ -179,6 +191,11 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     _ => ('R', MermaidShape.Circle),
                 };
             }
+        }
+
+        public Route GenerateRoute(int? seed = null)
+        {
+            return new RouteFinder(seed).Find(this);
         }
     }
 }
