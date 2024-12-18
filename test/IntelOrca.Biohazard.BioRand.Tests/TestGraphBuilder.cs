@@ -30,7 +30,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             var roomB = builder.Room("ROOM B");
             var edgeA = builder.Door(roomA, roomB);
             var edgeB = builder.Door(roomB, roomA, key);
-            Assert.Equal(edgeA, edgeB);
+            Assert.NotEqual(edgeA, edgeB);
 
             var g = builder.ToGraph();
             Assert.Single(g.Edges);
