@@ -6,6 +6,37 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
     public class TestGraphBuilder
     {
         [Fact]
+        public void NoDuplicateEdge_Simple()
+        {
+            var builder = new GraphBuilder();
+            var roomA = builder.Room("ROOM A");
+            var roomB = builder.Room("ROOM B");
+            var edgeA = builder.Door(roomA, roomB);
+            var edgeB = builder.Door(roomA, roomB);
+            var edgeC = builder.Door(roomB, roomA);
+            Assert.Equal(edgeA, edgeB);
+            Assert.Equal(edgeA, edgeC);
+
+            var g = builder.ToGraph();
+            Assert.Single(g.Edges);
+        }
+
+        [Fact]
+        public void NoDuplicateEdge_NewRequirements()
+        {
+            var builder = new GraphBuilder();
+            var key = builder.Key("KEY 0", 1);
+            var roomA = builder.Room("ROOM A");
+            var roomB = builder.Room("ROOM B");
+            var edgeA = builder.Door(roomA, roomB);
+            var edgeB = builder.Door(roomB, roomA, key);
+            Assert.Equal(edgeA, edgeB);
+
+            var g = builder.ToGraph();
+            Assert.Single(g.Edges);
+        }
+
+        [Fact]
         public void Example_RE2()
         {
             var builder = new GraphBuilder();
