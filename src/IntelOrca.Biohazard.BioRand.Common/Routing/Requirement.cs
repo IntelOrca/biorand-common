@@ -24,7 +24,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             _value = node;
         }
 
-        public bool Equals(Requirement other) => _value == other._value;
+        public bool Equals(Requirement other) => _value.Equals(other._value);
         public override bool Equals(object obj) => obj is Requirement other && Equals(other);
         public override int GetHashCode() => _value.GetHashCode();
         public override string ToString() => _value.ToString();
