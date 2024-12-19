@@ -17,6 +17,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             Label = label;
         }
 
+        public bool IsDefault => Id == 0;
         public bool IsItem => Kind == NodeKind.Item;
 
         public bool Equals(Node other) => Id == other.Id;

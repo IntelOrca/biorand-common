@@ -47,6 +47,11 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         public Edge Edge(Node sourceRoom, Node targetRoom, EdgeKind kind, params Requirement[] requires)
         {
+            if (sourceRoom.IsDefault)
+                throw new ArgumentException("Source node is uninitialized", nameof(sourceRoom));
+            if (targetRoom.IsDefault)
+                throw new ArgumentException("Target node is uninitialized", nameof(targetRoom));
+
             var index = _edges.FindIndex(x => x.Source == sourceRoom && x.Destination == targetRoom);
             if (index != -1)
             {
