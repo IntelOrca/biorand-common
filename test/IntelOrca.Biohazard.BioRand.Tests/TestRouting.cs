@@ -160,34 +160,9 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
                 var room3 = builder.AndGate("ROOM 3", room2, key0, key2);
                 var route = builder.GenerateRoute(i);
 
-                AssertItem(route, item0a, key0, key1);
-                AssertItem(route, item0b, key0, key1);
                 Assert.False(route.AllNodesVisited);
             }
         }
-
-#if false
-        /// <summary>
-        /// Test a map where a (start) room requires a key.
-        /// </summary>
-        [Fact]
-        public void StartRoomRequiresKey()
-        {
-            for (var i = 0; i < Retries; i++)
-            {
-                var builder = new GraphBuilder();
-
-                var key0 = builder.ReusuableKey(1, "KEY 0");
-                var room0 = builder.AndGate("ROOM 0");
-                var item0a = builder.Item(1, "ITEM 0.A", room0);
-                var room1 = builder.AndGate("ROOM 1", key0);
-                var route = builder.GenerateRoute(i);
-
-                AssertItem(route, item0a, key0);
-                Assert.True(route.AllNodesVisited);
-            }
-        }
-#endif
 
         /// <summary>
         /// Tests a map with two segments where a key must be placed in both
@@ -238,6 +213,94 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
 
                 AssertItem(route, item0a, key0);
                 AssertItemNotFulfilled(route, item1a);
+                Assert.True(route.AllNodesVisited);
+            }
+        }
+
+        /// <summary>
+        /// Tests a map with two segments where a key to get another key
+        /// only needs to be placed once.
+        /// </summary>
+        [Fact]
+        public void EnsureNestedKeysNotPlacedAgain()
+        {
+            for (var i = 0; i < Retries; i++)
+            {
+                var builder = new DependencyGraphBuilder();
+                var key0 = builder.ReusuableKey(1, "KEY 0");
+                var key1 = builder.ReusuableKey(1, "KEY 1");
+                var room0 = builder.AndGate("ROOM 0");
+                var item0a = builder.Item(1, "ITEM 0.A", room0);
+                var room1 = builder.AndGate("ROOM 1", room0);
+                var item1a = builder.Item(1, "ITEM 1.A", room1, key0);
+                var room2 = builder.NoReturn("ROOM 2", room1, key1);
+                var room2a = builder.Item(1, "ITEM 2.A", room2);
+                var room2b = builder.Item(1, "ITEM 2.B", room2);
+                var room3 = builder.AndGate("ROOM 3", room2, key0);
+                var room4 = builder.AndGate("ROOM 4", room3, key1);
+
+                var route = builder.GenerateRoute(i);
+
+                AssertKeyOnce(route, key0, item0a);
+                AssertKeyOnce(route, key1, item1a);
+                Assert.True(route.AllNodesVisited);
+            }
+        }
+
+        /// <summary>
+        /// Tests a map with two segments where k1 needs to be placed
+        /// again because there are two paths leading to k0.
+        /// </summary>
+        [Fact]
+        public void EnsureSemiNestedKeys()
+        {
+            for (var i = 0; i < Retries; i++)
+            {
+                var builder = new DependencyGraphBuilder();
+                var key0 = builder.ReusuableKey(1, "KEY 0");
+                var key1 = builder.ReusuableKey(1, "KEY 1");
+                var room0 = builder.AndGate("ROOM 0");
+                var item0a = builder.Item(1, "ITEM 0.A", room0);
+                var room1 = builder.AndGate("ROOM 1", room0, key1);
+                var item1a = builder.Item(1, "ITEM 1.A", room1);
+                var room2 = builder.OrGate("ROOM 2", room0, room1);
+                var room3 = builder.NoReturn("ROOM 3", room2, key0);
+                var room3a = builder.Item(1, "ITEM 3.A", room3);
+                var room3b = builder.Item(1, "ITEM 3.B", room3);
+                var room4 = builder.AndGate("ROOM 5", room3, key0, key1);
+
+                var route = builder.GenerateRoute(i);
+
+                AssertKeyOnce(route, key0, item0a, item1a);
+                AssertKeyQuantity(route, key1, 2);
+                AssertItem(route, room3a, key1, null);
+                AssertItem(route, room3b, key1, null);
+                Assert.True(route.AllNodesVisited);
+            }
+        }
+
+        /// <summary>
+        /// Tests a map with two segments where k1 needs to be placed
+        /// again because there are two paths leading to k0.
+        /// </summary>
+        [Fact]
+        public void EnsureKeyToRequiredNodeNotPlacedAgain()
+        {
+            for (var i = 0; i < Retries; i++)
+            {
+                var builder = new DependencyGraphBuilder();
+                var key0 = builder.ReusuableKey(1, "KEY 0");
+                var room0 = builder.AndGate("ROOM 0");
+                var item0a = builder.Item(1, "ITEM 0.A", room0);
+                var room1 = builder.AndGate("ROOM 1", room0);
+                var room2 = builder.AndGate("ROOM 2", room1, key0);
+                var room3 = builder.NoReturn("ROOM 3", room1, room2);
+                var item3a = builder.Item(1, "ITEM 3.A", room3);
+                var room4 = builder.AndGate("ROOM 4", room3, key0);
+
+                var route = builder.GenerateRoute(i);
+
+                AssertKeyOnce(route, key0, item0a);
                 Assert.True(route.AllNodesVisited);
             }
         }

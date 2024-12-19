@@ -18,9 +18,8 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         public Route Find(Graph input)
         {
-            var m = input.ToMermaid(true);
             var state = new State(input);
-            state = DoSubgraph(state, input.Start, first: true, _rng);
+            state = DoSubgraph(state, input.Start, _rng);
             return GetRoute(state);
         }
 
@@ -33,7 +32,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 string.Join("\n", state.Log));
         }
 
-        private static State DoSubgraph(State state, Node start, bool first, Random rng)
+        private static State DoSubgraph(State state, Node start, Random rng)
         {
             var guaranteedRequirements = GetGuaranteedRequirements(state, start);
             var keys = guaranteedRequirements.Where(x => x.IsKey).Select(x => x.Key!.Value).ToList();
@@ -59,7 +58,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             var bestState = state;
             foreach (var n in Shuffle(rng, state.Next))
             {
-                var required = GetRequiredKeys2(state, n);
+                var required = GetRequiredKeys(state, n);
 
                 // TODO do something better here
                 for (int retries = 0; retries < 10; retries++)
@@ -85,6 +84,13 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     }
                 }
             }
+
+            // If we have left over locked edges, don't bother continuing to next sub graph
+            if (state.Next.Count != 0)
+            {
+                return state;
+            }
+
             return DoNextSubGraph(bestState, rng);
         }
 
@@ -122,7 +128,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return state;
         }
 
-        private static List<Key> GetRequiredKeys2(State state, Edge edge)
+        private static List<Key> GetRequiredKeys(State state, Edge edge)
         {
             var required = GetMissingKeys(state, state.Keys, edge);
             var newKeys = state.Keys.AddRange(required);
@@ -204,7 +210,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             var subGraphs = state.OneWay.ToArray();
             foreach (var n in subGraphs)
             {
-                state = DoSubgraph(state, n, first: false, rng);
+                state = DoSubgraph(state, n, rng);
             }
             return state;
         }
@@ -239,15 +245,141 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         /// <param name="key"></param>
         /// <param name="edge"></param>
         /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
         private static int GetRemovableKeyCount(State state, Key key, Edge edge)
         {
-            return RequirementFinderState.GetRemovableKeyCount(state, edge.Destination, key);
+            return Internal(edge.Destination, [], 0);
+
+            int Internal(Node input, HashSet<Node> visited, int count)
+            {
+                if (!visited.Add(input))
+                    return -1;
+
+                if (input == state.Input.Start)
+                    return count;
+
+                var edges = state.Input.GetApplicableEdgesTo(input);
+                var min = (int?)null;
+                foreach (var e in edges)
+                {
+                    var other = e.Inverse(input);
+                    var newCount = count + e.RequiredKeys.Count(x => x == key);
+                    var r = Internal(other, visited, newCount);
+                    if (r != -1)
+                    {
+                        min = min is int m ? Math.Min(m, r) : r;
+                    }
+                }
+                return min ?? -1;
+            }
         }
 
         private static HashSet<Requirement> GetGuaranteedRequirements(State state, Node root)
         {
-            return RequirementFinderState.FindReusableRequirements(state, root);
+            var map = new Dictionary<Node, HashSet<Requirement>>();
+            map[state.Input.Start] = [state.Input.Start];
+            foreach (var n in state.Input.Nodes)
+            {
+                map[n] = GetNodeRequirements(n, []) ?? [n];
+            }
+
+            var keyMap = new Dictionary<Key, HashSet<Requirement>>();
+            foreach (var key in state.Input.Keys)
+            {
+                keyMap[key] = GetKeyRequirements(key);
+            }
+
+            var finalMap = new Dictionary<Node, HashSet<Requirement>>();
+            var result = Final(root, []) ?? [];
+            result.UnionWith(result
+                .Where(x => x.Node is Node n && n.IsItem)
+                .Select(x => new Requirement(state.ItemToKey[x.Node!.Value]))
+                .ToArray());
+            result.RemoveWhere(r => r.Key is Key k && k.Kind != KeyKind.Reusuable);
+            return result;
+
+            HashSet<Requirement>? GetNodeRequirements(Node input, HashSet<Node> visited)
+            {
+                if (visited.Contains(input))
+                    return null;
+
+                if (map.TryGetValue(input, out var result))
+                    return result;
+
+                visited.Add(input);
+                var sourceNodes = state.Input.GetApplicableEdgesTo(input);
+                foreach (var e in sourceNodes)
+                {
+                    var other = e.Inverse(input);
+                    var sub = GetNodeRequirements(other, visited);
+                    if (sub != null)
+                    {
+                        if (result == null)
+                            result = [.. sub, .. e.Requires];
+                        else
+                            result.IntersectWith([.. sub, .. e.Requires]);
+                    }
+                }
+                result?.Add(input);
+                return result;
+            }
+
+            HashSet<Requirement> GetKeyRequirements(Key key)
+            {
+                if (keyMap.TryGetValue(key, out var result))
+                    return result;
+
+                var items = state.ItemToKey.GetKeysContainingValue(key);
+                foreach (var item in items)
+                {
+                    var itemRequirements = new HashSet<Requirement>();
+                    foreach (var ir in map[item])
+                    {
+                        if (ir.Key is Key k)
+                        {
+                            foreach (var subr in GetKeyRequirements(k))
+                            {
+                                itemRequirements.Add(subr);
+                            }
+                        }
+                        else
+                        {
+                            itemRequirements.Add(ir);
+                        }
+                    }
+                    if (result == null)
+                        result = itemRequirements;
+                    else
+                        result.IntersectWith(itemRequirements);
+                }
+                return result ?? [];
+            }
+
+            HashSet<Requirement>? Final(Node input, HashSet<Node> visited)
+            {
+                if (finalMap.TryGetValue(input, out var result))
+                    return result;
+
+                if (!visited.Add(input))
+                    return null;
+
+                result = [];
+                foreach (var r in map[input])
+                {
+                    if (r.Key is Key k)
+                    {
+                        result.UnionWith(keyMap[k]);
+                    }
+                    else if (r.Node is Node n)
+                    {
+                        var sub = Final(n, visited);
+                        if (sub != null)
+                        {
+                            result.UnionWith(sub);
+                        }
+                    }
+                }
+                return result;
+            }
         }
 
         private static ChecklistItem GetChecklistItem(State state, Edge edge)
@@ -427,107 +559,6 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 var state = new State(this);
                 state.Log = Log.Add(message);
                 return state;
-            }
-        }
-
-        private class RequirementFinderState
-        {
-            public State State { get; }
-            public ImmutableHashSet<Node> Nodes { get; }
-            public ImmutableList<Edge> Edges { get; }
-
-            public Graph Input => State.Input;
-
-            private RequirementFinderState(State state, ImmutableHashSet<Node> nodes, ImmutableList<Edge> edges)
-            {
-                State = state;
-                Edges = edges;
-                Nodes = nodes;
-            }
-
-            public static HashSet<Requirement> FindReusableRequirements(State state, Node end)
-            {
-                var result = new HashSet<Requirement>();
-                var paths = FindPaths(state, end);
-                if (paths.Length != 0)
-                {
-                    result.UnionWith(paths[0].Requirements);
-                    foreach (var p in paths.Skip(1))
-                    {
-                        result.IntersectWith(p.Requirements);
-                    }
-                }
-                return result;
-            }
-
-            public static int GetRemovableKeyCount(State state, Node end, Key find)
-            {
-                var result = (int?)null;
-                var paths = FindPaths(state, end);
-                foreach (var p in paths)
-                {
-                    var c = p.Requirements.Count(x => x.Key is Key k && k == find);
-                    result = result is int r ? Math.Min(r, c) : c;
-                }
-                return result ?? 0;
-            }
-
-            public static RequirementFinderState[] FindPaths(State state, Node end)
-            {
-                var finderState = new RequirementFinderState(state, [end], []);
-                var result = finderState.Continue(end).ToArray();
-                return result;
-            }
-
-            private IEnumerable<RequirementFinderState> Continue(Node target)
-            {
-                var edges = Input.GetApplicableEdgesTo(target)
-                    .Where(x => !Nodes.Contains(x.Source) || !Nodes.Contains(x.Destination))
-                    .ToArray();
-                return Continue(target, edges);
-            }
-
-            private IEnumerable<RequirementFinderState> Continue(Node target, IEnumerable<Edge> edges)
-            {
-                if (ReachedEnd)
-                {
-                    yield return this;
-                    yield break;
-                }
-
-                foreach (var edge in edges)
-                {
-                    var other = edge.Source == target ? edge.Destination : edge.Source;
-                    var choice = Fork(other, edge);
-                    foreach (var c in choice.Continue(other))
-                    {
-                        yield return c;
-                    }
-                }
-            }
-
-            public RequirementFinderState Fork(Node node, Edge edge)
-            {
-                return new RequirementFinderState(State, Nodes.Add(node), Edges.Add(edge));
-            }
-
-            public bool ReachedEnd => Edges.Count == 0
-                ? Nodes.Contains(Input.Start)
-                : Edges.Last().Contains(Input.Start);
-
-            public Requirement[] Requirements
-            {
-                get
-                {
-                    if (Edges.Count == 0)
-                        return [];
-
-                    var endNode = Edges[0].Destination;
-                    return Edges
-                        .SelectMany(x => x.Requires)
-                        .Concat(Nodes.Where(x => x != endNode).Select(x => new Requirement(x)))
-                        .ToArray();
-                }
             }
         }
     }

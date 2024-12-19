@@ -16,6 +16,11 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         public IEnumerable<Node> RequiredNodes => requires.Where(x => x.IsNode).Select(x => x.Node!.Value);
 
         public bool Contains(Node n) => source == n || destination == n;
+        public Node Inverse(Node n) => source == n ?
+            destination :
+            destination == n
+                ? source
+                : throw new ArgumentException("Edge does not contain given node");
 
         public override string ToString()
         {
