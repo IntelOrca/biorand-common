@@ -1263,9 +1263,7 @@
                     "target": "211"
                 },
                 {
-                    "target": "219",
-                    "player": 0,
-                    "kind": "unblock"
+                    "target": "219"
                 },
                 {
                     "target": "219",
@@ -1411,8 +1409,7 @@
                     "target": "303"
                 },
                 {
-                    "target": "402",
-                    "kind": "noreturn"
+                    "target": "402"
                 }
             ],
             "items": []
@@ -1527,13 +1524,11 @@
                 },
                 {
                     "target": "4001",
-                    "kind": "noreturn",
                     "player": 1,
                     "scenario": 0
                 },
                 {
                     "target": "4010",
-                    "kind": "noreturn",
                     "player": 1,
                     "scenario": 1
                 }
@@ -3721,8 +3716,7 @@
         "40E": {
             "doors": [
                 {
-                    "target": "500",
-                    "kind": "noreturn"
+                    "target": "500"
                 },
                 {
                     "target": "40D"

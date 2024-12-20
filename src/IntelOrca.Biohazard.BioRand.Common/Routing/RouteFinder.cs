@@ -32,7 +32,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 string.Join("\n", state.Log));
         }
 
-        private static State DoSubgraph(State state, Node start, Random rng)
+        private static State DoSubgraph(State state, Node start, Random rng, bool fork = false)
         {
             var guaranteedRequirements = GetGuaranteedRequirements(state, start);
             var keys = guaranteedRequirements.Where(x => x.IsKey).Select(x => x.Key!.Value).ToList();
@@ -41,7 +41,10 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             var toVisit = new List<Node> { start };
 
             state = state.AddLog($"Begin subgraph {start}");
-            state = state.Clear(visited, keys, next);
+            if (fork)
+                state = state.Fork(visited, keys, next);
+            else
+                state = state.Clear(visited, keys, next);
             foreach (var v in toVisit)
                 state = state.VisitNode(v);
 
@@ -53,6 +56,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             state = Expand(state);
             if (!ValidateState(state))
                 return state;
+
+            // Choose to go down one way paths first
+            state = FollowOneWayExits(state, rng);
 
             // Choose a door to open
             var bestState = state;
@@ -91,7 +97,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 return state;
             }
 
-            return DoNextSubGraph(bestState, rng);
+            return FollowNoReturnExits(bestState, rng);
         }
 
         private static State Expand(State state)
@@ -111,7 +117,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
                         if (e.Kind == EdgeKind.OneWay || e.Kind == EdgeKind.NoReturn)
                         {
-                            newState = newState.AddOneWay(e.Destination);
+                            newState = newState.AddOneWay(e);
                         }
                         else
                         {
@@ -205,12 +211,24 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return result;
         }
 
-        private static State DoNextSubGraph(State state, Random rng)
+        private static State FollowOneWayExits(State state, Random rng)
         {
-            var subGraphs = Shuffle(rng, state.OneWay);
-            foreach (var n in subGraphs)
+            var subGraphs = Shuffle(rng, state.OneWay.Where(x => x.Kind == EdgeKind.OneWay));
+            foreach (var e in subGraphs)
             {
-                state = DoSubgraph(state, n, rng);
+                state = state.RemoveOneWay(e);
+                state = DoSubgraph(state, e.Destination, rng, fork: true);
+            }
+            return state;
+        }
+
+        private static State FollowNoReturnExits(State state, Random rng)
+        {
+            var subGraphs = Shuffle(rng, state.OneWay.Where(x => x.Kind == EdgeKind.NoReturn));
+            foreach (var e in subGraphs)
+            {
+                state = state.RemoveOneWay(e);
+                state = DoSubgraph(state, e.Destination, rng);
             }
             return state;
         }
@@ -464,8 +482,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         private sealed class State
         {
             public Graph Input { get; }
+            public State? Parent { get; private set; }
             public ImmutableHashSet<Edge> Next { get; private set; } = [];
-            public ImmutableHashSet<Node> OneWay { get; private set; } = [];
+            public ImmutableHashSet<Edge> OneWay { get; private set; } = [];
             public ImmutableHashSet<Node> SpareItems { get; private set; } = [];
             public ImmutableHashSet<Node> Visited { get; private set; } = [];
             public ImmutableMultiSet<Key> Keys { get; private set; } = ImmutableMultiSet<Key>.Empty;
@@ -479,6 +498,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
             private State(State state)
             {
+                Parent = state.Parent;
                 Input = state.Input;
                 Next = state.Next;
                 OneWay = state.OneWay;
@@ -502,15 +522,69 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 return result;
             }
 
-            public State AddOneWay(Node node)
+            public State Fork(IEnumerable<Node> visited, IEnumerable<Key> keys, IEnumerable<Edge> next)
+            {
+                var result = new State(this)
+                {
+                    Parent = this,
+                    Visited = ImmutableHashSet<Node>.Empty.Union(visited),
+                    Keys = ImmutableMultiSet<Key>.Empty.AddRange(keys),
+                    Next = ImmutableHashSet<Edge>.Empty.Union(next),
+                    OneWay = [],
+                    SpareItems = []
+                };
+                return result;
+            }
+
+            public State RemoveOneWay(Edge edge)
             {
                 var result = new State(this);
-                result.OneWay = OneWay.Add(node);
+                result.OneWay = OneWay.Remove(edge);
+                return result;
+            }
+
+            public State AddOneWay(Edge edge)
+            {
+                var result = new State(this);
+                result.OneWay = OneWay.Add(edge);
+                return result;
+            }
+
+            private State Join(State joinParent)
+            {
+                var result = new State(this);
+                var curr = this;
+                do
+                {
+                    curr = curr.Parent;
+                    if (curr == null)
+                        throw new ArgumentException("Parent to join with not found", nameof(joinParent));
+
+                    result.Visited = result.Visited.Union(curr.Visited);
+                    result.Keys = result.Keys.AddRange(curr.Keys);
+                    result.Next = result.Next.Union(curr.Next);
+                    result.OneWay = result.OneWay.Union(curr.OneWay);
+                    result.SpareItems = result.SpareItems.Union(curr.SpareItems);
+                    result.Log = result.Log.Add("Join back to parent");
+                } while (curr != joinParent);
                 return result;
             }
 
             public State VisitNode(Node node)
             {
+                // Can we join
+                {
+                    var parent = Parent;
+                    while (parent != null)
+                    {
+                        if (parent.Visited.Contains(node))
+                        {
+                            return Join(parent);
+                        }
+                        parent = parent.Parent;
+                    }
+                }
+
                 var result = new State(this);
                 result.Visited = Visited.Add(node);
                 if (node.Kind == NodeKind.Item)

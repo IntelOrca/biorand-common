@@ -179,7 +179,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
                 var room0 = builder.AndGate("ROOM 0");
                 var item0a = builder.Item(1, "ITEM 0.A", room0);
                 var room1 = builder.AndGate("ROOM 1", room0, key0);
-                var room2 = builder.OneWay("ROOM 2", room0);
+                var room2 = builder.NoReturn("ROOM 2", room0);
                 var item2a = builder.Item(1, "ITEM 2.A", room2);
                 var room3 = builder.AndGate("ROOM 3", room2, key0);
 
@@ -392,6 +392,45 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
                 Assert.True(route.AllNodesVisited);
                 AssertKeyOnce(route, key0, item2);
                 AssertKeyOnce(route, key1, item3);
+            }
+        }
+
+        /// <summary>
+        /// Tests a map with a mini segment which you do once then never
+        /// return to.
+        /// </summary>
+        [Fact]
+        public void SingleTimeMiniSegment()
+        {
+            for (var i = 0; i < Retries; i++)
+            {
+                var builder = new GraphBuilder();
+                var key0 = builder.Key("KEY 0", 1);
+                var key1 = builder.Key("KEY 1", 1);
+
+                var room0 = builder.Room("ROOM 0");
+                var room1 = builder.Room("ROOM 1");
+                var room2 = builder.Room("ROOM 2");
+                var room3 = builder.Room("ROOM 3");
+                var room4 = builder.Room("ROOM 4");
+                var room5 = builder.Room("ROOM 5");
+
+                var item0 = builder.Item("ITEM 0", 1, room0);
+                var item2 = builder.Item("ITEM 2", 1, room2);
+                var item3 = builder.Item("ITEM 3", 1, room3, key1);
+
+                builder.Door(room0, room1);
+                builder.Door(room1, room4);
+                builder.Door(room4, room5, key0);
+                builder.OneWay(room1, room2);
+                builder.Door(room2, room3);
+                builder.NoReturn(room3, room4);
+
+                var route = builder.GenerateRoute(i);
+
+                Assert.True(route.AllNodesVisited);
+                AssertKeyOnce(route, key0, item0);
+                AssertKeyOnce(route, key1, item2);
             }
         }
 

@@ -24,18 +24,35 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
 
             var expectedCounts = new Dictionary<string, (int, int)>()
             {
+                ["Lockpick"] = (0, 0),
+                ["SerpentStone"] = (0, 0),
+                ["JaguarStoneL"] = (0, 0),
+                ["JaguarStoneR"] = (0, 0),
+                ["EagleStone"] = (0, 0),
+                ["C4"] = (0, 0),
+                ["Detonator"] = (0, 0),
+                ["VaccineBase"] = (0, 0),
+                ["VaccineCart"] = (0, 0),
+                ["JointPlugBlue"] = (0, 0),
+                ["JointPlugRed"] = (0, 0),
+                ["CabinKey"] = (0, 0),
+                ["UpKey"] = (0, 0),
+                ["PowerRoomKey"] = (0, 0),
+                ["MasterKey"] = (0, 0),
+                ["PlatformKey"] = (0, 0),
+
                 ["SmallKey"] = (2, 2),
                 ["RedJewel"] = (2, 2),
-                ["Lighter"] = (1, 3),
-                ["ValveHandle"] = (1, 2),
+                ["Lighter"] = (1, 2),
+                ["ValveHandle"] = (1, 1),
             };
             foreach (var k in route.Graph.Keys)
             {
                 var count = route.GetItemsContainingKey(k).Count;
                 if (!expectedCounts.TryGetValue(k.Label, out var expectedCount))
                     expectedCount = (1, 1);
-                // Assert.True(count >= expectedCount.Item1, $"{k.Label} was placed {count} times");
-                // Assert.True(count <= expectedCount.Item2, $"{k.Label} was placed {count} times");
+                Assert.True(count >= expectedCount.Item1, $"{k.Label} was placed {count} times");
+                Assert.True(count <= expectedCount.Item2, $"{k.Label} was placed {count} times");
             }
             Assert.True(route.AllNodesVisited);
         }
@@ -66,15 +83,16 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
                     if (item.Scenario != null && item.Scenario != scenario)
                         continue;
 
+                    var group = 1;
                     if (item.Kind == "low")
-                        continue;
+                        group = 2;
 
                     var requires = item.Requires.Select(TransformRequirement).ToArray();
 
                     exampleGraph.ItemNames.TryGetValue(item.GlobalId, out var itemName);
                     if (string.IsNullOrEmpty(itemName))
                         itemName = $"{item.GlobalId}";
-                    builder.Item($"ITEM:{roomName}/{itemName}", 1, roomNodes[kvp.Key], requires);
+                    builder.Item($"ITEM:{roomName}/{itemName}", group, roomNodes[kvp.Key], requires);
                 }
             }
 

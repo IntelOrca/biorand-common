@@ -36,7 +36,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 .ToImmutableDictionary(x => x.Key, x => x.OrderBy(x => x).ToImmutableArray());
             Start = nodes.First();
             Subgraphs = GetSubgraphs();
-            ValidateNoReturns();
+            // ValidateNoReturns();
         }
 
         public ImmutableArray<Edge> GetEdges(Node node)

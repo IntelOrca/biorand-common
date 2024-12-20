@@ -64,7 +64,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         /// Checks that an exception is thrown if a no return leads back to somewhere
         /// we have already been.
         /// </summary>
-        [Fact]
+        [Fact(Skip = "No longer validated")]
         public void NoReturnThatReturns()
         {
             var builder = new GraphBuilder();
