@@ -36,6 +36,12 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 .ToImmutableDictionary(x => x.Key, x => x.ToImmutableArray());
             Start = nodes.First();
             Subgraphs = GetSubgraphs();
+            ValidateNoReturns();
+        }
+
+        public ImmutableArray<Edge> GetEdges(Node node)
+        {
+            return GetEdgesFrom(node).AddRange(GetEdgesTo(node));
         }
 
         public ImmutableArray<Edge> GetEdgesFrom(Node node)
@@ -132,6 +138,46 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     }
                 }
                 return ([.. nodes], end.Where(x => !visited.Contains(x)).ToArray());
+            }
+        }
+
+        private void ValidateNoReturns()
+        {
+            Search(Start, []);
+
+            void Search(Node input, HashSet<Node> bad)
+            {
+                var q = new Queue<Node>([input]);
+                var exit = new HashSet<Node>();
+                var visited = new HashSet<Node>();
+                while (q.Count != 0)
+                {
+                    var n = q.Dequeue();
+                    if (!visited.Add(n))
+                        continue;
+                    if (!bad.Add(n))
+                        throw new GraphException("No return edge returns back.");
+
+                    var edges = GetEdges(n);
+                    foreach (var e in edges)
+                    {
+                        if (e.Kind == EdgeKind.NoReturn)
+                        {
+                            if (e.Source == n)
+                            {
+                                exit.Add(e.Destination);
+                            }
+                        }
+                        else
+                        {
+                            q.Enqueue(e.Inverse(n));
+                        }
+                    }
+                }
+                foreach (var e in exit)
+                {
+                    Search(e, [.. bad]);
+                }
             }
         }
 

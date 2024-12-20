@@ -36,6 +36,55 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             Assert.Single(g.Edges);
         }
 
+        /// <summary>
+        /// Checks that an exception is not thrown if a no return never leads back to somewhere
+        /// we have already been.
+        /// </summary>
+        [Fact]
+        public void NoReturnThatDoesNotReturn()
+        {
+            var builder = new GraphBuilder();
+            var room0 = builder.Room();
+            var room1 = builder.Room();
+            var room2 = builder.Room();
+            var room3 = builder.Room();
+            var room4 = builder.Room();
+            var room5 = builder.Room();
+            var room6 = builder.Room();
+            builder.Door(room0, room1);
+            builder.Door(room1, room2);
+            builder.Door(room1, room3);
+            builder.NoReturn(room3, room4);
+            builder.Door(room4, room5);
+            builder.Door(room5, room6);
+            builder.ToGraph();
+        }
+
+        /// <summary>
+        /// Checks that an exception is thrown if a no return leads back to somewhere
+        /// we have already been.
+        /// </summary>
+        [Fact]
+        public void NoReturnThatReturns()
+        {
+            var builder = new GraphBuilder();
+            var room0 = builder.Room();
+            var room1 = builder.Room();
+            var room2 = builder.Room();
+            var room3 = builder.Room();
+            var room4 = builder.Room();
+            var room5 = builder.Room();
+            var room6 = builder.Room();
+            builder.Door(room0, room1);
+            builder.Door(room1, room2);
+            builder.Door(room1, room3);
+            builder.NoReturn(room3, room4);
+            builder.Door(room4, room5);
+            builder.Door(room5, room6);
+            builder.Door(room5, room2);
+            Assert.Throws<GraphException>(builder.ToGraph);
+        }
+
         [Fact]
         public void Example_RE2()
         {
