@@ -8,12 +8,39 @@ using System.Text.RegularExpressions;
 using IntelOrca.Biohazard.BioRand.Routing;
 using Xunit;
 
+[assembly: CollectionBehavior(DisableTestParallelization = false)]
+
 namespace IntelOrca.Biohazard.BioRand.Common.Tests
 {
     public class TestRoutingExamples
     {
         [Fact]
         public void Example_RE2_LEON_A()
+        {
+            var graph = GetGraph("re2");
+            var mNoItems = graph.ToMermaid(useLabels: true, includeItems: false);
+            var mItems = graph.ToMermaid(useLabels: true, includeItems: true);
+            var route = graph.GenerateRoute(0);
+
+            var expectedCounts = new Dictionary<string, (int, int)>()
+            {
+                ["SmallKey"] = (2, 2),
+                ["RedJewel"] = (2, 2),
+                ["Lighter"] = (1, 3),
+                ["ValveHandle"] = (1, 2),
+            };
+            foreach (var k in route.Graph.Keys)
+            {
+                var count = route.GetItemsContainingKey(k).Count;
+                if (!expectedCounts.TryGetValue(k.Label, out var expectedCount))
+                    expectedCount = (1, 1);
+                // Assert.True(count >= expectedCount.Item1, $"{k.Label} was placed {count} times");
+                // Assert.True(count <= expectedCount.Item2, $"{k.Label} was placed {count} times");
+            }
+            Assert.True(route.AllNodesVisited);
+        }
+
+        private static Graph GetGraph(string name)
         {
             var exampleGraph = GetExampleGraph("re2");
             var player = 0;
@@ -104,10 +131,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             }
 
             var graph = builder.ToGraph();
-            var mNoItems = graph.ToMermaid(useLabels: true, includeItems: false);
-            var mItems = graph.ToMermaid(useLabels: true, includeItems: true);
-            var route = graph.GenerateRoute(0);
-            Assert.True(route.AllNodesVisited);
+            return graph;
 
             Requirement TransformRequirement(string s)
             {

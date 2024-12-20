@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace IntelOrca.Biohazard.BioRand.Routing
 {
-    public readonly struct Edge(Node source, Node destination, ImmutableArray<Requirement> requires, EdgeKind kind)
+    public readonly struct Edge(Node source, Node destination, ImmutableArray<Requirement> requires, EdgeKind kind) : IComparable<Edge>
     {
         public Node Source => source;
         public Node Destination => destination;
@@ -14,6 +14,13 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         public IEnumerable<Key> RequiredKeys => requires.Where(x => x.IsKey).Select(x => x.Key!.Value);
         public IEnumerable<Node> RequiredNodes => requires.Where(x => x.IsNode).Select(x => x.Node!.Value);
+
+        public int CompareTo(Edge other)
+        {
+            return Source == other.Source
+                ? Destination.CompareTo(other.Destination)
+                : Source.CompareTo(other.Source);
+        }
 
         public bool Contains(Node n) => source == n || destination == n;
         public Node Inverse(Node n) => source == n ?

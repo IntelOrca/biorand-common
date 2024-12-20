@@ -132,7 +132,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         {
             var required = GetMissingKeys(state, state.Keys, edge);
             var newKeys = state.Keys.AddRange(required);
-            foreach (var n in state.Next)
+            foreach (var n in state.Next.OrderBy(x => x))
             {
                 if (n.Equals(edge))
                     continue;
@@ -207,7 +207,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         private static State DoNextSubGraph(State state, Random rng)
         {
-            var subGraphs = state.OneWay.ToArray();
+            var subGraphs = Shuffle(rng, state.OneWay);
             foreach (var n in subGraphs)
             {
                 state = DoSubgraph(state, n, rng);
@@ -220,7 +220,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             var result = new List<Edge>();
             while (true)
             {
-                var next = state.Next.ToArray();
+                var next = state.Next.OrderBy(x => x).ToArray();
                 var index = Array.FindIndex(next, x => IsSatisfied(state, x));
                 if (index == -1)
                     break;
@@ -285,7 +285,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             var keyMap = new Dictionary<Key, HashSet<Requirement>>();
             foreach (var key in state.Input.Keys)
             {
-                keyMap[key] = GetKeyRequirements(key);
+                keyMap[key] = GetKeyRequirements(key, []);
             }
 
             var finalMap = new Dictionary<Node, HashSet<Requirement>>();
@@ -323,10 +323,13 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 return result;
             }
 
-            HashSet<Requirement> GetKeyRequirements(Key key)
+            HashSet<Requirement> GetKeyRequirements(Key key, HashSet<Key> visited)
             {
                 if (keyMap.TryGetValue(key, out var result))
                     return result;
+
+                if (!visited.Add(key))
+                    return [];
 
                 var items = state.ItemToKey.GetKeysContainingValue(key);
                 foreach (var item in items)
@@ -336,7 +339,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     {
                         if (ir.Key is Key k)
                         {
-                            foreach (var subr in GetKeyRequirements(k))
+                            foreach (var subr in GetKeyRequirements(k, visited))
                             {
                                 itemRequirements.Add(subr);
                             }
@@ -438,7 +441,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         private static T[] Shuffle<T>(Random rng, IEnumerable<T> items)
         {
-            var result = items.ToArray();
+            var result = items.OrderBy(x => x).ToArray();
             for (var i = 0; i < result.Length; i++)
             {
                 var j = rng.Next(0, i + 1);

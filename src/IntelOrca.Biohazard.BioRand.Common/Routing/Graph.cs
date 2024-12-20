@@ -30,10 +30,10 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             Edges = edges;
             EdgeMap = edges
                 .GroupBy(x => x.Source)
-                .ToImmutableDictionary(x => x.Key, x => x.ToImmutableArray());
+                .ToImmutableDictionary(x => x.Key, x => x.OrderBy(x => x).ToImmutableArray());
             InverseEdgeMap = edges
                 .GroupBy(x => x.Destination)
-                .ToImmutableDictionary(x => x.Key, x => x.ToImmutableArray());
+                .ToImmutableDictionary(x => x.Key, x => x.OrderBy(x => x).ToImmutableArray());
             Start = nodes.First();
             Subgraphs = GetSubgraphs();
             ValidateNoReturns();
