@@ -16,11 +16,15 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         public Requirement(Key key)
         {
+            if (key.IsDefault)
+                throw new ArgumentException("Key is uninitialized", nameof(key));
             _value = key;
         }
 
         public Requirement(Node node)
         {
+            if (node.IsDefault)
+                throw new ArgumentException("Node is uninitialized", nameof(node));
             _value = node;
         }
 

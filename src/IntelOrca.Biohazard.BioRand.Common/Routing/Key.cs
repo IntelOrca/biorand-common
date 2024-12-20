@@ -8,6 +8,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         public int Group => group;
         public KeyKind Kind => kind;
         public string? Label => label;
+        public bool IsDefault => id == 0;
         public override int GetHashCode() => id.GetHashCode();
         public override bool Equals(object obj) => obj is Key k && Equals(k);
         public bool Equals(Key other) => id == other.Id;
