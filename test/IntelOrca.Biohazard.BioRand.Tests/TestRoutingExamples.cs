@@ -17,53 +17,30 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         [Fact]
         public void Example_RE2_LEON_A()
         {
-            var graph = GetGraph("re2");
-            var mNoItems = graph.ToMermaid(useLabels: true, includeItems: false);
-            var mItems = graph.ToMermaid(useLabels: true, includeItems: true);
-            var route = graph.GenerateRoute(0);
-
-            var expectedCounts = new Dictionary<string, (int, int)>()
-            {
-                ["Lockpick"] = (0, 0),
-                ["SerpentStone"] = (0, 0),
-                ["JaguarStoneL"] = (0, 0),
-                ["JaguarStoneR"] = (0, 0),
-                ["EagleStone"] = (0, 0),
-                ["C4"] = (0, 0),
-                ["Detonator"] = (0, 0),
-                ["VaccineBase"] = (0, 0),
-                ["VaccineCart"] = (0, 0),
-                ["JointPlugBlue"] = (0, 0),
-                ["JointPlugRed"] = (0, 0),
-                ["CabinKey"] = (0, 0),
-                ["UpKey"] = (0, 0),
-                ["PowerRoomKey"] = (0, 0),
-                ["MasterKey"] = (0, 0),
-                ["PlatformKey"] = (0, 0),
-
-                ["SmallKey"] = (2, 2),
-                ["RedJewel"] = (2, 2),
-                ["Lighter"] = (1, 2),
-                ["ValveHandle"] = (1, 1),
-            };
+            var testCase = GetTestCase("re2", 0, 0);
+            var mNoItems = testCase.Graph.ToMermaid(useLabels: true, includeItems: false);
+            var mItems = testCase.Graph.ToMermaid(useLabels: true, includeItems: true);
+            var route = testCase.Graph.GenerateRoute(0);
             foreach (var k in route.Graph.Keys)
             {
                 var count = route.GetItemsContainingKey(k).Count;
-                if (!expectedCounts.TryGetValue(k.Label, out var expectedCount))
-                    expectedCount = (1, 1);
-                Assert.True(count >= expectedCount.Item1, $"{k.Label} was placed {count} times");
-                Assert.True(count <= expectedCount.Item2, $"{k.Label} was placed {count} times");
+                if (!testCase.Expectations.TryGetValue(k, out var expectedCount))
+                    expectedCount = [0, 0];
+                Assert.True(count >= expectedCount[0], $"{k.Label} was placed {count} times");
+                Assert.True(count <= expectedCount[1], $"{k.Label} was placed {count} times");
             }
             Assert.True(route.AllNodesVisited);
         }
 
-        private static Graph GetGraph(string name)
+        private static TestCaseGraph GetTestCase(string name, int player, int scenario)
         {
-            var exampleGraph = GetExampleGraph("re2");
-            var player = 0;
-            var scenario = 0;
+            var exampleGraph = GetExampleGraph(name);
+
+            var testCase = exampleGraph.TestCases.First(x => x.Scenario == scenario && x.Player == player);
 
             var builder = new GraphBuilder();
+            var startNode = builder.Room("START");
+
             var keys = new Dictionary<int, Key>();
             foreach (var kvp in exampleGraph.Keys)
             {
@@ -148,8 +125,11 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
                 }
             }
 
+            builder.Door(startNode, roomNodes[testCase.Start]);
+
             var graph = builder.ToGraph();
-            return graph;
+            var expectations = testCase.Expectations.ToDictionary(x => keys[x.Key], x => x.Value);
+            return new TestCaseGraph(graph, expectations);
 
             Requirement TransformRequirement(string s)
             {
@@ -189,24 +169,32 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             ms.Position = 0;
             return JsonSerializer.Deserialize<ExampleGraph>(ms, new JsonSerializerOptions()
             {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                ReadCommentHandling = JsonCommentHandling.Skip
             });
+        }
+
+        private class TestCaseGraph(Graph graph, Dictionary<Key, int[]> expectations)
+        {
+            public Graph Graph => graph;
+            public Dictionary<Key, int[]> Expectations => expectations;
         }
 
         private class ExampleGraph
         {
-            public BeginEndRoom[] BeginEndRooms { get; set; } = [];
+            public TestCase[] TestCases { get; set; } = [];
             public Dictionary<string, Room> Rooms { get; set; } = [];
             public Dictionary<int, Key> Keys { get; set; } = [];
             public Dictionary<string, string> RoomNames { get; set; } = [];
             public Dictionary<int, string> ItemNames { get; set; } = [];
 
-            public class BeginEndRoom
+            public class TestCase
             {
                 public string Start { get; set; } = "";
                 public string End { get; set; } = "";
                 public int Player { get; set; }
                 public int Scenario { get; set; }
+                public Dictionary<int, int[]> Expectations { get; set; }
             }
 
             public class Room
