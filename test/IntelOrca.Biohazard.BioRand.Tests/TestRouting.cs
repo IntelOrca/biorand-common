@@ -306,27 +306,54 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         }
 
         /// <summary>
+        /// Tests a simple map with a one way edge.
+        /// </summary>
+        [Fact]
+        public void BasicOneWay()
+        {
+            for (var i = 0; i < Retries; i++)
+            {
+                var builder = new GraphBuilder();
+                var room0 = builder.Room("ROOM 0");
+                var room1 = builder.Room("ROOM 1");
+                var room2 = builder.Room("ROOM 2");
+                builder.Door(room0, room1);
+                builder.Door(room1, room2);
+                builder.OneWay(room0, room2);
+
+                var route = builder.GenerateRoute(i);
+                Assert.True(route.AllNodesVisited);
+            }
+        }
+
+        /// <summary>
         /// Tests a map with a mini segment which can go back to main segment.
         /// </summary>
-        [Fact(Skip = "Stuck")]
+        [Fact]
         public void MiniSegment()
         {
             for (var i = 0; i < Retries; i++)
             {
-                var builder = new DependencyGraphBuilder();
+                var builder = new GraphBuilder();
+                var key0 = builder.Key("KEY 0", 1);
+                var key1 = builder.Key("KEY 1", 1);
 
-                var key0 = builder.ReusuableKey(1, "KEY 0");
-                var key1 = builder.ReusuableKey(1, "KEY 1");
+                var room1 = builder.Room("ROOM 1");
+                var room2 = builder.Room("ROOM 2");
+                var room3 = builder.Room("ROOM 3");
+                var room4 = builder.Room("ROOM 4");
+                var room5 = builder.Room("ROOM 5");
+                var room6 = builder.Room("ROOM 6");
 
-                var room1 = builder.AndGate("ROOM 1");
-                var room2 = builder.AndGate("ROOM 2", room1);
-                var room3 = builder.OneWay("ROOM 3", room1);
-                var room4 = builder.AndGate("ROOM 4", room3, key1);
-                var room5 = builder.OrGate("ROOM 5", room2, room4);
-                var room6 = builder.AndGate("ROOM 6", room3, key0);
+                var item2 = builder.Item("Item 2", 1, room2);
+                var item3 = builder.Item("Item 3", 1, room3);
 
-                var item2 = builder.Item(1, "Item 2", room2);
-                var item3 = builder.Item(1, "Item 3", room3);
+                builder.Door(room1, room2);
+                builder.Door(room2, room5);
+                builder.Door(room3, room4, key1);
+                builder.Door(room3, room6, key0);
+                builder.BlockedDoor(room4, room5);
+                builder.OneWay(room1, room3);
 
                 var route = builder.GenerateRoute(i);
 
@@ -339,7 +366,7 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
         /// <summary>
         /// Tests a map with a two segments which you can go between.
         /// </summary>
-        [Fact(Skip = "Stuck")]
+        [Fact(Skip = "Failing")]
         public void CircularSegments()
         {
             for (var i = 0; i < Retries; i++)
