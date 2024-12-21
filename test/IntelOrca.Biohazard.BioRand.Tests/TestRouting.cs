@@ -785,6 +785,21 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             }
         }
 
+        [Fact]
+        public void RequiresNonExistantRoom()
+        {
+            for (var i = 0; i < Retries; i++)
+            {
+                var builder = new DependencyGraphBuilder();
+                var room0 = builder.AndGate("ROOM 0");
+                var room1 = builder.AndGate("ROOM 1");
+                var room2 = builder.AndGate("ROOM 2", room0, room1);
+
+                var route = builder.GenerateRoute(i);
+                Assert.False(route.AllNodesVisited);
+            }
+        }
+
         private static void AssertItemNotFulfilled(Route route, Node item)
         {
             var actual = route.GetItemContents(item);

@@ -65,6 +65,8 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             foreach (var n in Shuffle(rng, state.Next))
             {
                 var required = GetRequiredKeys(state, n);
+                if (required.Count == 0)
+                    continue;
 
                 // TODO do something better here
                 for (int retries = 0; retries < 10; retries++)
