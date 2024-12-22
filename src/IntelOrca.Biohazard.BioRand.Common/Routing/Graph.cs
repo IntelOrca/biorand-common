@@ -239,9 +239,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             }
         }
 
-        public Route GenerateRoute(int? seed = null)
+        public Route GenerateRoute(int? seed = null, RouteFinderOptions? options = null)
         {
-            return new RouteFinder(seed).Find(this);
+            return new RouteFinder(seed, options).Find(this);
         }
     }
 }

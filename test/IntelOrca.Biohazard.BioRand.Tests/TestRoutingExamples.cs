@@ -8,8 +8,6 @@ using System.Text.RegularExpressions;
 using IntelOrca.Biohazard.BioRand.Routing;
 using Xunit;
 
-[assembly: CollectionBehavior(DisableTestParallelization = false)]
-
 namespace IntelOrca.Biohazard.BioRand.Common.Tests
 {
     public class TestRoutingExamples

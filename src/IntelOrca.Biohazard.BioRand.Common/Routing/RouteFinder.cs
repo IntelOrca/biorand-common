@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using IntelOrca.Biohazard.BioRand.Collections;
 
 namespace IntelOrca.Biohazard.BioRand.Routing
@@ -9,17 +10,20 @@ namespace IntelOrca.Biohazard.BioRand.Routing
     public class RouteFinder
     {
         private readonly Random _rng = new Random();
+        private readonly RouteFinderOptions _options = new RouteFinderOptions();
 
-        public RouteFinder(int? seed = null)
+        public RouteFinder(int? seed = null, RouteFinderOptions? options = null)
         {
             if (seed != null)
                 _rng = new Random(seed.Value);
+            if (options != null)
+                _options = options;
         }
 
-        public Route Find(Graph input)
+        public Route Find(Graph input, CancellationToken ct = default)
         {
             var state = new State(input);
-            state = DoSubgraph(state, input.Start, _rng);
+            state = DoSubgraph(_options, state, input.Start, _rng, false, 0, ct);
             return GetRoute(state);
         }
 
@@ -32,7 +36,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 string.Join("\n", state.Log));
         }
 
-        private static State DoSubgraph(State state, Node start, Random rng, bool fork = false)
+        private static State DoSubgraph(RouteFinderOptions options, State state, Node start, Random rng, bool fork, int depth, CancellationToken ct)
         {
             var guaranteedRequirements = GetGuaranteedRequirements(state, start);
             var keys = guaranteedRequirements.Where(x => x.IsKey).Select(x => x.Key!.Value).ToList();
@@ -48,17 +52,22 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             foreach (var v in toVisit)
                 state = state.VisitNode(v);
 
-            return Fulfill(state, rng);
+            return Fulfill(options, state, rng, depth, ct);
         }
 
-        private static State Fulfill(State state, Random rng)
+        private static State Fulfill(RouteFinderOptions options, State state, Random rng, int depth, CancellationToken ct)
         {
+            if (depth >= options.DebugDepthLimit)
+            {
+                throw new RouteFinderException("Depth limit reached", state);
+            }
+
             state = Expand(state);
             if (!ValidateState(state))
                 return state;
 
             // Choose to go down one way paths first
-            state = FollowOneWayExits(state, rng);
+            state = FollowOneWayExits(options, state, rng, depth, ct);
 
             // Choose a door to open
             var bestState = state;
@@ -81,7 +90,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                         newState = newState.PlaceKey(slots[i], required[i]);
                     }
 
-                    var finalState = Fulfill(newState, rng);
+                    var finalState = Fulfill(options, newState, rng, depth + 1, ct);
                     if (finalState.Next.Count == 0 && finalState.OneWay.Count == 0)
                     {
                         return finalState;
@@ -96,10 +105,11 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             // If we have left over locked edges, don't bother continuing to next sub graph
             if (state.Next.Count != 0)
             {
+                options.DebugDeadendCallback?.Invoke(state);
                 return state;
             }
 
-            return FollowNoReturnExits(bestState, rng);
+            return FollowNoReturnExits(options, bestState, rng, depth, ct);
         }
 
         private static State Expand(State state)
@@ -213,24 +223,24 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             return result;
         }
 
-        private static State FollowOneWayExits(State state, Random rng)
+        private static State FollowOneWayExits(RouteFinderOptions options, State state, Random rng, int depth, CancellationToken ct)
         {
             var subGraphs = Shuffle(rng, state.OneWay.Where(x => x.Kind == EdgeKind.OneWay));
             foreach (var e in subGraphs)
             {
                 state = state.RemoveOneWay(e);
-                state = DoSubgraph(state, e.Destination, rng, fork: true);
+                state = DoSubgraph(options, state, e.Destination, rng, true, depth, ct);
             }
             return state;
         }
 
-        private static State FollowNoReturnExits(State state, Random rng)
+        private static State FollowNoReturnExits(RouteFinderOptions options, State state, Random rng, int depth, CancellationToken ct)
         {
             var subGraphs = Shuffle(rng, state.OneWay.Where(x => x.Kind == EdgeKind.NoReturn));
             foreach (var e in subGraphs)
             {
                 state = state.RemoveOneWay(e);
-                state = DoSubgraph(state, e.Destination, rng);
+                state = DoSubgraph(options, state, e.Destination, rng, false, depth, ct);
             }
             return state;
         }
@@ -556,6 +566,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             {
                 var result = new State(this);
                 var curr = this;
+                var depth = Depth;
                 do
                 {
                     curr = curr.Parent;
@@ -567,8 +578,19 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     result.Next = result.Next.Union(curr.Next);
                     result.OneWay = result.OneWay.Union(curr.OneWay);
                     result.SpareItems = result.SpareItems.Union(curr.SpareItems);
-                    result.Log = result.Log.Add("Join back to parent");
+                    result.Log = result.Log.Add(TransformLogMessage(depth, "Join back to parent"));
+
+                    foreach (var si in result.SpareItems)
+                    {
+                        if (result.ItemToKey.TryGetValue(si, out var k))
+                        {
+                            throw new Exception();
+                        }
+                    }
+
+                    depth--;
                 } while (curr != joinParent);
+                result.Parent = joinParent.Parent;
                 return result;
             }
 
@@ -606,7 +628,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     .ToArray();
 
                 result.Next = Next.Union(edges);
-                result.Log = Log.Add($"Satisfied node: {node}");
+                result.Log = Log.Add(TransformLogMessage($"Visit node: {node}"));
                 return result;
             }
 
@@ -621,7 +643,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 result.SpareItems = SpareItems.Remove(item);
                 result.ItemToKey = ItemToKey.Add(item, key);
                 result.Keys = Keys.Add(key);
-                result.Log = Log.Add($"Place {key} at {item}");
+                result.Log = Log.Add(TransformLogMessage($"Place {key} at {item}"));
                 return result;
             }
 
@@ -636,8 +658,30 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             public State AddLog(string message)
             {
                 var state = new State(this);
-                state.Log = Log.Add(message);
+                state.Log = Log.Add(TransformLogMessage(message));
                 return state;
+            }
+
+            private string TransformLogMessage(string message) => TransformLogMessage(Depth, message);
+
+            private string TransformLogMessage(int depth, string message)
+            {
+                return new string(' ', depth * 2) + message;
+            }
+
+            public int Depth
+            {
+                get
+                {
+                    var depth = 0;
+                    var p = Parent;
+                    while (p != null)
+                    {
+                        depth++;
+                        p = p.Parent;
+                    }
+                    return depth;
+                }
             }
         }
     }
