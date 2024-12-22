@@ -57,6 +57,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         private static State Fulfill(RouteFinderOptions options, State state, Random rng, int depth, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             if (depth >= options.DebugDepthLimit)
             {
                 throw new RouteFinderException("Depth limit reached", state);
