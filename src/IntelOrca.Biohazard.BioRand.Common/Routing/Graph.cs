@@ -94,51 +94,34 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         private ImmutableArray<ImmutableArray<Node>> GetSubgraphs()
         {
-            var graphs = new List<ImmutableArray<Node>>();
+            var graphs = ImmutableArray.CreateBuilder<ImmutableArray<Node>>();
             var visited = new HashSet<Node>();
-            var unvisited = new HashSet<Node>(Nodes);
-            while (unvisited.Count != 0)
+            foreach (var node in Nodes)
             {
-                var next = new[] { unvisited.First() };
-                while (next.Any())
-                {
-                    var (g, end) = GetEndNodes(next);
-                    graphs.Add([.. g]);
-                    next = end;
-                }
-            }
-            return graphs.ToImmutableArray();
+                if (visited.Contains(node))
+                    continue;
 
-            (Node[], Node[]) GetEndNodes(IEnumerable<Node> start)
-            {
-                var nodes = new List<Node>();
-                var end = new List<Node>();
-                var q = new Queue<Node>(start);
+                var g = ImmutableArray.CreateBuilder<Node>();
+                var q = new Queue<Node>([node]);
                 while (q.Count != 0)
                 {
                     var n = q.Dequeue();
                     if (!visited.Add(n))
                         continue;
 
-                    unvisited.Remove(n);
-                    nodes.Add(n);
-
-                    var edges = GetApplicableEdgesFrom(n);
-                    foreach (var e in edges)
+                    g.Add(n);
+                    var edges = GetEdges(n);
+                    foreach (var edge in edges)
                     {
-                        if (e.Kind == EdgeKind.OneWay || e.Kind == EdgeKind.NoReturn)
-                        {
-                            end.Add(e.Destination);
-                        }
-                        else
-                        {
-                            q.Enqueue(e.Source);
-                            q.Enqueue(e.Destination);
-                        }
+                        if (edge.Kind == EdgeKind.OneWay || edge.Kind == EdgeKind.NoReturn)
+                            continue;
+
+                        q.Enqueue(edge.Inverse(n));
                     }
                 }
-                return ([.. nodes], end.Where(x => !visited.Contains(x)).ToArray());
+                graphs.Add(g.ToImmutable());
             }
+            return graphs.ToImmutable();
         }
 
         private void ValidateNoReturns()
@@ -218,9 +201,14 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 var sourceName = GetNodeName(edge.Source);
                 var targetName = GetNodeName(edge.Destination);
                 var label = string.Join(" + ", GetKeys(edge, useLabels));
-                var edgeType = edge.Kind == EdgeKind.TwoWay
-                    ? MermaidEdgeType.Solid
-                    : MermaidEdgeType.Dotted;
+                var edgeType = edge.Kind switch
+                {
+                    EdgeKind.TwoWay => MermaidEdgeType.Solid | MermaidEdgeType.Bidirectional,
+                    EdgeKind.UnlockTwoWay => MermaidEdgeType.Dotted | MermaidEdgeType.Bidirectional,
+                    EdgeKind.OneWay => MermaidEdgeType.Dotted,
+                    EdgeKind.NoReturn => MermaidEdgeType.Dotted,
+                    _ => throw new NotSupportedException()
+                };
                 mb.Edge(sourceName, targetName, label, edgeType);
             }
 

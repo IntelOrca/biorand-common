@@ -72,6 +72,8 @@ namespace IntelOrca.Biohazard.BioRand.Graphing
             {
                 MermaidEdgeType.Solid => ("-->", "--", "-->"),
                 MermaidEdgeType.Dotted => ("-.->", "-.", ".->"),
+                MermaidEdgeType.Bidirectional | MermaidEdgeType.Solid => ("<-->", "<--", "-->"),
+                MermaidEdgeType.Bidirectional | MermaidEdgeType.Dotted => ("<-.->", "<-.", ".->"),
                 _ => throw new ArgumentException("Invalid type", nameof(type))
             };
         }
@@ -86,9 +88,12 @@ namespace IntelOrca.Biohazard.BioRand.Graphing
         Hexagon
     }
 
+    [Flags]
     public enum MermaidEdgeType
     {
         Solid,
-        Dotted
+        Dotted = 1 << 0,
+        Bidirectional = 1 << 1,
+        Thick = 1 << 2
     }
 }
