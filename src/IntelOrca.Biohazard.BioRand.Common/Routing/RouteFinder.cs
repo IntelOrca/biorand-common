@@ -44,7 +44,10 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             var next = new List<Edge>();
             var toVisit = new List<Node> { start };
 
-            state = state.AddLog($"Begin subgraph {start}");
+            if (fork)
+                state = state.AddLog($"Begin fork {start}");
+            else
+                state = state.AddLog($"Begin subgraph {start}");
             if (fork)
                 state = state.Fork(visited, keys, next);
             else
