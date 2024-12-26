@@ -123,9 +123,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
                 foreach (var e in satisfied)
                 {
-                    if (state.Visited.Contains(e.Source))
+                    if (newState.Visited.Contains(e.Source))
                     {
-                        if (state.Visited.Contains(e.Destination))
+                        if (newState.Visited.Contains(e.Destination))
                             continue;
 
                         if (e.Kind == EdgeKind.OneWay || e.Kind == EdgeKind.NoReturn)
@@ -307,7 +307,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
         private static HashSet<Requirement> GetGuaranteedRequirements(State state, Node root)
         {
             var map = new Dictionary<Node, HashSet<Requirement>>();
-            map[state.Input.Start] = [state.Input.Start];
+            map[state.Input.Start] = [new Requirement(state.Input.Start, isSoft: true)];
             foreach (var n in state.Input.Nodes)
             {
                 map[n] = GetNodeRequirements(n, []) ?? [n];
@@ -325,6 +325,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 .Where(x => x.Node is Node n && n.IsItem)
                 .Select(x => new Requirement(state.ItemToKey[x.Node!.Value]))
                 .ToArray());
+            result.RemoveWhere(r => r.IsNode && r.IsSoft);
             result.RemoveWhere(r => r.Key is Key k && k.Kind != KeyKind.Reusuable);
             return result;
 
@@ -350,7 +351,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                             result.IntersectWith([.. sub, .. e.Requires]);
                     }
                 }
-                result?.Add(input);
+                result?.Add(new Requirement(input, isSoft: true));
                 return result;
             }
 
@@ -409,6 +410,10 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                         if (sub != null)
                         {
                             result.UnionWith(sub);
+                        }
+                        if (!r.IsSoft)
+                        {
+                            result.Add(r);
                         }
                     }
                 }

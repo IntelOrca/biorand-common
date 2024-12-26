@@ -800,6 +800,22 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             }
         }
 
+        [Fact]
+        public void RequiresRoomPreviousSegment()
+        {
+            for (var i = 0; i < Retries; i++)
+            {
+                var builder = new DependencyGraphBuilder();
+                var room0 = builder.AndGate("ROOM 0");
+                var room1 = builder.AndGate("ROOM 1", room0);
+                var room2 = builder.NoReturn("ROOM 2", room0, room1);
+                var room3 = builder.AndGate("ROOM 3", room2, room1);
+
+                var route = builder.GenerateRoute(i);
+                Assert.True(route.AllNodesVisited);
+            }
+        }
+
         private static void AssertItemNotFulfilled(Route route, Node item)
         {
             var actual = route.GetItemContents(item);
