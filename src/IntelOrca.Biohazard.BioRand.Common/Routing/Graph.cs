@@ -164,7 +164,10 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             }
         }
 
-        public string ToMermaid(bool useLabels = false, bool includeItems = true)
+        public string ToMermaid(
+            bool useLabels = false,
+            bool includeItems = true,
+            IEnumerable<Node>? visited = null)
         {
             var mb = new MermaidBuilder();
             mb.Node("S", " ", MermaidShape.Circle);
@@ -194,6 +197,17 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
                 EmitEdge(edge);
             }
+
+            if (visited != null)
+            {
+                mb.ClassDefinition("_visited", new Dictionary<string, string>
+                {
+                    ["stroke"] = "#ccc",
+                    ["fill"] = "#008000"
+                });
+                mb.Class("_visited", visited.Select(GetNodeName));
+            }
+
             return mb.ToString();
 
             void EmitEdge(Edge edge)

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace IntelOrca.Biohazard.BioRand.Graphing
@@ -41,6 +43,16 @@ namespace IntelOrca.Biohazard.BioRand.Graphing
                 AppendLine($"{source} {full} {target}");
             else
                 AppendLine($"{source} {left} \"{label}\" {right} {target}");
+        }
+
+        public void ClassDefinition(string name, Dictionary<string, string> css)
+        {
+            AppendLine($"classDef {name} {string.Join(",", css.Select(x => $"{x.Key}:{x.Value}"))};");
+        }
+
+        public void Class(string name, IEnumerable<string> nodes)
+        {
+            AppendLine($"class {string.Join(",", nodes)} {name}");
         }
 
         private void Indent() => _indent++;

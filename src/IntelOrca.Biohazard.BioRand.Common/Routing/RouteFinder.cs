@@ -684,6 +684,18 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                     return depth;
                 }
             }
+
+            public string ToMermaid(bool useLabels = false, bool includeItems = true)
+            {
+                var visited = new HashSet<Node>();
+                var s = this;
+                while (s != null)
+                {
+                    visited.UnionWith(s.Visited);
+                    s = s.Parent;
+                }
+                return Input.ToMermaid(useLabels, includeItems, Visited);
+            }
         }
     }
 }
