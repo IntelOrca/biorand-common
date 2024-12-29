@@ -229,9 +229,12 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         private static State FollowOneWayExits(RouteFinderOptions options, State state, Random rng, int depth, CancellationToken ct)
         {
-            var subGraphs = Shuffle(rng, state.OneWay.Where(x => x.Kind == EdgeKind.OneWay));
-            foreach (var e in subGraphs)
+            var subGraphs = Shuffle(rng, state.OneWay
+                .Where(x => x.Kind == EdgeKind.OneWay)
+                .OrderBy(x => x));
+            if (subGraphs.Length > 0)
             {
+                var e = subGraphs[0];
                 state = state.RemoveOneWay(e);
                 state = DoSubgraph(options, state, e.Destination, rng, true, depth, ct);
             }
