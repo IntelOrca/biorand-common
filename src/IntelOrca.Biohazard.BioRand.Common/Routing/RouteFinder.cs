@@ -75,12 +75,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
             // Choose a door to open
             var bestState = state;
-            foreach (var n in Shuffle(rng, state.Next))
+            var edgeToRequiredKeys = SortEdgesWithRequirements(rng, state);
+            foreach (var required in edgeToRequiredKeys)
             {
-                var required = GetRequiredKeys(state, n);
-                if (required.Count == 0)
-                    continue;
-
                 // TODO do something better here
                 for (int retries = 0; retries < 10; retries++)
                 {
@@ -114,6 +111,36 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             }
 
             return FollowNoReturnExits(options, bestState, rng, depth, ct);
+        }
+
+        private static List<Key>[] SortEdgesWithRequirements(Random rng, State state)
+        {
+            var next = Shuffle(rng, state.Next
+                .OrderBy(x => x)
+                .Select(x => GetRequiredKeys(state, x))
+                .Where(x => x.Count != 0));
+            Array.Sort(next, Compare);
+            return next;
+
+            int Compare(List<Key> a, List<Key> b)
+            {
+                var an = CountPlacedKeys(a);
+                var bn = CountPlacedKeys(b);
+                return an - bn;
+            }
+
+            int CountPlacedKeys(List<Key> keys)
+            {
+                var result = 0;
+                foreach (var k in keys)
+                {
+                    if (k.Kind == KeyKind.Reusuable && state.ItemToKey.GetKeysContainingValue(k).Count != 0)
+                    {
+                        result++;
+                    }
+                }
+                return result;
+            }
         }
 
         private static State Expand(State state)
@@ -204,7 +231,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
             if (state.SpareItems.Count < keys.Count)
                 return null;
 
-            var available = Shuffle(rng, state.SpareItems).ToList();
+            var available = Shuffle(rng, state.SpareItems.OrderBy(x => x)).ToList();
             var result = new Node[keys.Count];
             for (var i = 0; i < keys.Count; i++)
             {
@@ -243,7 +270,9 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         private static State FollowNoReturnExits(RouteFinderOptions options, State state, Random rng, int depth, CancellationToken ct)
         {
-            var subGraphs = Shuffle(rng, state.OneWay.Where(x => x.Kind == EdgeKind.NoReturn));
+            var subGraphs = Shuffle(rng, state.OneWay
+                .Where(x => x.Kind == EdgeKind.NoReturn)
+                .OrderBy(x => x));
             foreach (var e in subGraphs)
             {
                 state = state.RemoveOneWay(e);
@@ -483,7 +512,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
 
         private static T[] Shuffle<T>(Random rng, IEnumerable<T> items)
         {
-            var result = items.OrderBy(x => x).ToArray();
+            var result = items.ToArray();
             for (var i = 0; i < result.Length; i++)
             {
                 var j = rng.Next(0, i + 1);

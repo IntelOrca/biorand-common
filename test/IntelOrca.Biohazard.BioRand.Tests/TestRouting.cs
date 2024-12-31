@@ -434,6 +434,46 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             }
         }
 
+        /// <summary>
+        /// Tests a one way edge, where a key might be placed again,
+        /// due to a door requiring it in new area.
+        /// </summary>
+        [Fact]
+        public void OneWay_KeyNotPlacedTwice()
+        {
+            for (var i = 0; i < Retries; i++)
+            {
+                var builder = new GraphBuilder();
+                var key0 = builder.Key("KEY 0", 1);
+                var key1 = builder.Key("KEY 1", 1);
+                var key2 = builder.Key("KEY 2", 1);
+
+                var room0 = builder.Room("ROOM 0");
+                var room1 = builder.Room("ROOM 1");
+                var room2 = builder.Room("ROOM 2");
+                var room3 = builder.Room("ROOM 3");
+                var room4 = builder.Room("ROOM 4");
+                var room5 = builder.Room("ROOM 5");
+
+                var item0 = builder.Item("ITEM 0", 1, room0);
+                var item1 = builder.Item("ITEM 1", 1, room1);
+                var item2 = builder.Item("ITEM 2", 1, room2);
+                var item4 = builder.Item("ITEM 4", 1, room4);
+
+                builder.Door(room0, room1);
+                builder.OneWay(room1, room2, key1);
+                builder.Door(room1, room5, key0);
+                builder.Door(room2, room4);
+                builder.BlockedDoor(room4, room1, key2);
+                builder.Door(room2, room3, key0);
+
+                var route = builder.GenerateRoute(i);
+
+                Assert.True(route.AllNodesVisited);
+                AssertKeyOnce(route, key0, item0, item1, item2, item4);
+            }
+        }
+
         [Fact]
         public void SingleUseKey_DoorAfterDoor()
         {
