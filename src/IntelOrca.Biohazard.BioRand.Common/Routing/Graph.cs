@@ -218,7 +218,7 @@ namespace IntelOrca.Biohazard.BioRand.Routing
                 var edgeType = edge.Kind switch
                 {
                     EdgeKind.TwoWay => MermaidEdgeType.Solid | MermaidEdgeType.Bidirectional,
-                    EdgeKind.UnlockTwoWay => MermaidEdgeType.Dotted | MermaidEdgeType.Bidirectional,
+                    EdgeKind.UnlockTwoWay => MermaidEdgeType.Solid,
                     EdgeKind.OneWay => MermaidEdgeType.Dotted,
                     EdgeKind.NoReturn => MermaidEdgeType.Dotted,
                     _ => throw new NotSupportedException()
