@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -182,6 +183,7 @@ namespace IntelOrca.Biohazard.BioRand
             catch (Exception ex)
             {
                 _handler.LogError(ex, "Failed to send heartbeat");
+                throw;
             }
         }
 
@@ -336,7 +338,7 @@ namespace IntelOrca.Biohazard.BioRand
             }
             var response = await _httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)
-                throw new Exception($"{response.StatusCode} returned");
+                throw new HttpException(response.StatusCode);
 
             var responseContent = await response.Content.ReadAsStringAsync();
             if (responseContent.Length == 0)
@@ -399,6 +401,10 @@ namespace IntelOrca.Biohazard.BioRand
             public int ProfileUserId { get; set; }
             public string? ProfileUserName { get; set; }
             public string? Config { get; set; }
+        }
+
+        private class HttpException(HttpStatusCode code) : Exception($"{code} returned from http request")
+        {
         }
     }
 }
