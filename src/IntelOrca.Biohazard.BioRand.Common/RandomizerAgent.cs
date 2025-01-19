@@ -87,9 +87,22 @@ namespace IntelOrca.Biohazard.BioRand
                 {
                     try
                     {
-                        await Task.WhenAny(
-                            RunStatusLoopAsync(ct),
-                            RunProcessLoopAsync(ct));
+                        var localCts = new CancellationTokenSource();
+                        var linked = CancellationTokenSource.CreateLinkedTokenSource(localCts.Token, ct);
+                        var a = RunStatusLoopAsync(linked.Token);
+                        var b = RunProcessLoopAsync(linked.Token);
+                        try
+                        {
+                            await Task.WhenAny(a, b);
+                        }
+                        finally
+                        {
+                            localCts.Cancel();
+                            await Task.WhenAll(a, b);
+                        }
+                    }
+                    catch
+                    {
                     }
                     finally
                     {
