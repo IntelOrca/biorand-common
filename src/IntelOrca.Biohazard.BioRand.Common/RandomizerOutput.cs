@@ -1,18 +1,15 @@
 ﻿using System.Collections.Generic;
+using System.Collections.Immutable;
 
 namespace IntelOrca.Biohazard.BioRand
 {
-    public class RandomizerOutput
+    public class RandomizerOutput(
+        ImmutableArray<RandomizerOutputAsset> assets,
+        string instructions,
+        Dictionary<string, string> logs)
     {
-        public byte[] PakOutput { get; }
-        public byte[] FluffyOutput { get; }
-        public Dictionary<string, string> Logs { get; }
-
-        public RandomizerOutput(byte[] pakOutput, byte[] fluffyOutput, Dictionary<string, string> logs)
-        {
-            PakOutput = pakOutput;
-            FluffyOutput = fluffyOutput;
-            Logs = logs;
-        }
+        public ImmutableArray<RandomizerOutputAsset> Assets => assets;
+        public string Instructions => instructions;
+        public Dictionary<string, string> Logs => logs;
     }
 }

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -26,9 +25,28 @@ namespace IntelOrca.Biohazard.BioRand.Common.Tests
             public RandomizerOutput Randomize(RandomizerInput input)
             {
                 return new RandomizerOutput(
-                    new byte[16],
-                    new byte[16],
-                    new Dictionary<string, string>());
+                    [
+                        new RandomizerOutputAsset(
+                            "1-patch",
+                            "Patch",
+                            "Simply drop this file into your RE 4 install folder.",
+                            "biorand-re4r-58252-mod.zip",
+                            new byte[16]),
+                        new RandomizerOutputAsset(
+                            "2-fluffy",
+                            "Fluffy Mod",
+                            "Drop this zip file into Fluffy Mod Manager's mod folder and enable it.",
+                            "biorand-re4r-58252.zip",
+                            new byte[16])
+                    ],
+                    """
+                    <p class="mt-3">What should I do if my game crashes?</p>
+                    <ol class="ml-8 list-decimal text-gray-300">
+                      <li>Reload from last checkpoint and try again.</li>
+                      <li>Alter the enemy sliders slightly or reduce the number temporarily. This will reshuffle the enemies. Reload from last checkpoint and try again.</li> <li>As a last resort, change your seed, and reload from last checkpoint.</li>
+                    </ol>
+                    """,
+                    []);
             }
 
             public Task<bool> CanGenerateAsync(RandomizerAgent.QueueResponseItem queueItem) => Task.FromResult(true);

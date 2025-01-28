@@ -4,8 +4,10 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using IntelOrca.Biohazard.BioRand.Common.Extensions;
 
 namespace IntelOrca.Biohazard.BioRand
 {
@@ -15,11 +17,9 @@ namespace IntelOrca.Biohazard.BioRand
         private const string StatusGenerating = "Generating";
         private const string StatusUploading = "Uploading";
 
+        private static readonly JsonSerializerOptions _options;
+
         private readonly HttpClient _httpClient = new();
-        private readonly JsonSerializerOptions _options = new JsonSerializerOptions()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
         private readonly IRandomizerAgentHandler _handler;
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1);
         private DateTime _lastHeartbeatTime;
@@ -38,7 +38,14 @@ namespace IntelOrca.Biohazard.BioRand
         public TimeSpan PollTime { get; set; } = TimeSpan.FromSeconds(5);
         public TimeSpan RestartTime { get; set; } = TimeSpan.FromSeconds(5);
 
-        public bool UseMultiPartFormUpload { get; } = true;
+        static RandomizerAgent()
+        {
+            _options = new JsonSerializerOptions()
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+            _options.Converters.Add(new UnixDateTimeConverter());
+        }
 
         public RandomizerAgent(string baseUri, string apiKey, int gameId, IRandomizerAgentHandler handler)
         {
@@ -303,26 +310,25 @@ namespace IntelOrca.Biohazard.BioRand
                 _handler.LogInfo($"Uploading rando {q.Id}...");
                 try
                 {
-                    if (UseMultiPartFormUpload)
+                    foreach (var asset in output.Assets)
                     {
-                        await PostFormAsync<object>("generator/end-form", new Dictionary<string, object>
+                        await PostFormAsync<object>("generator/asset", new Dictionary<string, object>
                         {
                             ["id"] = Id,
                             ["randoId"] = q.Id,
-                            ["pakOutput"] = output.PakOutput,
-                            ["fluffyOutput"] = output.FluffyOutput
+                            ["key"] = asset.Key,
+                            ["title"] = asset.Title,
+                            ["description"] = asset.Description,
+                            ["data"] = asset.Data,
+                            ["data.filename"] = asset.FileName
                         });
                     }
-                    else
+                    await PostAsync<object>("generator/end", new
                     {
-                        await PostAsync<object>("generator/end", new
-                        {
-                            Id,
-                            RandoId = q.Id,
-                            output.PakOutput,
-                            output.FluffyOutput
-                        });
-                    }
+                        Id,
+                        RandoId = q.Id,
+                        output.Instructions
+                    });
                     _handler.LogInfo($"Uploaded rando {q.Id}");
                 }
                 catch (Exception ex)
@@ -368,7 +374,7 @@ namespace IntelOrca.Biohazard.BioRand
             {
                 if (kvp.Value is byte[] b)
                 {
-                    form.Add(new ByteArrayContent(b), kvp.Key, kvp.Key);
+                    form.Add(new ByteArrayContent(b), kvp.Key, (string)formData[$"{kvp.Key}.filename"]);
                 }
                 else
                 {
@@ -402,6 +408,7 @@ namespace IntelOrca.Biohazard.BioRand
             public int Id { get; set; }
             public int GameId { get; set; }
             public DateTime Created { get; set; }
+            public string[] UserTags { get; set; } = [];
             public int UserId { get; set; }
             public int Seed { get; set; }
             public int ConfigId { get; set; }
@@ -418,6 +425,19 @@ namespace IntelOrca.Biohazard.BioRand
 
         private class HttpException(HttpStatusCode code) : Exception($"{code} returned from http request")
         {
+        }
+
+        private class UnixDateTimeConverter : JsonConverter<DateTime>
+        {
+            public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                return reader.GetInt64().ToDateTime();
+            }
+
+            public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+            {
+                writer.WriteNumberValue(value.ToUnixTimeSeconds());
+            }
         }
     }
 }
