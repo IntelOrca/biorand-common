@@ -3,7 +3,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Nullable>enable</Nullable>
     <LangVersion>12.0</LangVersion>
-    <Version>1.2.9</Version>
+    <Version>1.3.0</Version>
     <Title>BioRand Common Library</Title>
     <Authors>Ted John</Authors>
     <Product>$(AssemblyName)</Product>
