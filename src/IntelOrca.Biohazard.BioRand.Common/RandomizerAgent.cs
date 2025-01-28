@@ -323,6 +323,12 @@ namespace IntelOrca.Biohazard.BioRand
                             ["data.filename"] = asset.FileName
                         });
                     }
+                    await PostAsync<object>("generator/end", new
+                    {
+                        Id,
+                        RandoId = q.Id,
+                        output.Instructions
+                    });
                     _handler.LogInfo($"Uploaded rando {q.Id}");
                 }
                 catch (Exception ex)
